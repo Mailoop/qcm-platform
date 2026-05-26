@@ -397,13 +397,13 @@ function renderSection(){
       html+='<div class="radio-group">';
       q.options.forEach((opt,i)=>{
         const checked=Array.isArray(answers[q.id])&&answers[q.id].includes(i);
-        html+='<label class="radio-option'+(checked?' selected':'')+'" onclick="toggleCheckbox(''+q.id+'','+i+',this)"><input type="checkbox" name="'+q.id+'" value="'+i+'"'+(checked?' checked':'')+' style="pointer-events:none"><span>'+(opt.text||opt)+'</span></label>';
+        html+='<label class="radio-option'+(checked?' selected':'')+'" data-qid="'+q.id+'" data-val="'+i+'" data-type="checkbox"><input type="checkbox" name="'+q.id+'" value="'+i+'"'+(checked?' checked':'')+' style="pointer-events:none"><span>'+(opt.text||opt)+'</span></label>';
       });
       html+='</div>';
     } else if(q.type==='slider'){
       const val=answers[q.id]!==undefined?answers[q.id]:null;
       html+='<div style="padding:1rem 0">';
-      html+='<input type="range" min="0" max="'+(q.options.length-1)+'" step="1" value="'+(val!==null?val:2)+'" oninput="selectSlider(''+q.id+'',parseInt(this.value))" style="width:100%;accent-color:var(--accent);cursor:pointer">';
+      html+='<input type="range" min="0" max="'+(q.options.length-1)+'" step="1" value="'+(val!==null?val:2)+'" data-qid="'+q.id+'" data-type="slider" style="width:100%;accent-color:var(--accent);cursor:pointer">';
       html+='<div style="display:flex;justify-content:space-between;margin-top:10px;gap:2px">';
       q.options.forEach((opt,i)=>{
         const active=val===i;
@@ -414,13 +414,14 @@ function renderSection(){
       html+='<div class="radio-group">';
       q.options.forEach((opt,i)=>{
         const sel=answers[q.id]===i?' selected':'';
-        html+='<label class="radio-option'+sel+'" onclick="selectAnswer(''+q.id+'','+i+',this)"><input type="radio" name="'+q.id+'" value="'+i+'"'+(sel?' checked':'')+' style="pointer-events:none"><span>'+(opt.text||opt)+'</span></label>';
+        html+='<label class="radio-option'+sel+'" data-qid="'+q.id+'" data-val="'+i+'" data-type="radio"><input type="radio" name="'+q.id+'" value="'+i+'"'+(sel?' checked':'')+' style="pointer-events:none"><span>'+(opt.text||opt)+'</span></label>';
       });
       html+='</div>';
     }
     html+='<div class="error-msg" id="err-'+q.id+'" style="display:none">Veuillez répondre à cette question.</div></div>';
   });
   document.getElementById('q-container').innerHTML=html;
+  attachSectionListeners();
   document.getElementById('btn-prev').style.display=currentSection===0?'none':'inline-flex';
   document.getElementById('btn-next').textContent=currentSection===QUESTIONS.length-1?'Envoyer mes réponses →':'Suivant →';
 }
@@ -449,6 +450,24 @@ function selectAnswer(qId,val,el){
   document.querySelectorAll('[name="'+qId+'"]').forEach(r=>r.closest('.radio-option').classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('err-'+qId).style.display='none';
+}
+
+function attachSectionListeners(){
+  const container = document.getElementById('q-container');
+  container.addEventListener('click', function(e){
+    const label = e.target.closest('[data-type]');
+    if(!label) return;
+    const type = label.dataset.type;
+    const qId = label.dataset.qid;
+    const val = parseInt(label.dataset.val);
+    if(type === 'radio') selectAnswer(qId, val, label);
+    else if(type === 'checkbox') toggleCheckbox(qId, val, label);
+  });
+  container.addEventListener('input', function(e){
+    if(e.target.dataset.type === 'slider'){
+      selectSlider(e.target.dataset.qid, parseInt(e.target.value));
+    }
+  });
 }
 
 function validateSection(){
