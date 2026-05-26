@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OICN Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f0f8fd;--bg2:#fff;--bg3:#e8f4fb;--border:#80C1E8;--border2:#4a9dcc;--text:#012d52;--text2:#2a5f8a;--text3:#5a8aaa;--accent:#015DAA;--accent2:#0070cc;--danger:#c0392b;--success:#0a7c4e;--radius:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{background:var(--accent);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(1,93,170,.2)}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar h1{color:#fff;font-size:15px;font-weight:600}
+.topbar-badge{background:rgba(255,255,255,.2);color:#fff;font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:.08em;text-transform:uppercase}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-email{color:rgba(255,255,255,.7);font-size:13px}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.7);margin-left:16px}
+.breadcrumb a{color:rgba(255,255,255,.7);cursor:pointer;text-decoration:none}
+.breadcrumb a:hover{color:#fff}
+.breadcrumb span{color:#fff;font-weight:500}
+.app{max-width:960px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.screen{display:none}.screen.active{display:block}
+.login-wrap{max-width:420px;margin:4rem auto;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:2.5rem}
+.login-wrap h2{font-family:'DM Serif Display',serif;font-size:24px;font-weight:400;color:var(--accent);margin-bottom:8px}
+.login-wrap p{font-size:14px;color:var(--text2);margin-bottom:2rem;line-height:1.6}
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;font-size:14px;padding:9px 13px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;color:var(--text);outline:none;font-family:'DM Sans',sans-serif;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(1,93,170,.1)}
+.field textarea{min-height:80px;resize:vertical}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.error-msg{font-size:12px;color:var(--danger);margin-top:5px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;color:var(--text2);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;transition:all .15s}
+.btn:hover{background:var(--bg3);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn-danger{background:#fff;color:var(--danger);border-color:#e8c0bc}
+.btn-danger:hover{background:#fdf0ee}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:1.25rem}
+.tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:2rem}
+.tab{padding:10px 20px;font-size:14px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab:hover{color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}
+.section-header h2{font-size:18px;font-weight:600;color:var(--text)}
+.section-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin:1.5rem 0 .75rem;padding-bottom:8px;border-bottom:1px solid var(--border)}
+
+/* Survey cards */
+.survey-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.survey-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.5rem;cursor:pointer;transition:border-color .2s,box-shadow .2s;position:relative}
+.survey-card:hover{border-color:var(--accent);box-shadow:0 4px 16px rgba(1,93,170,.1)}
+.survey-card-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px}
+.survey-card-slug{font-size:12px;color:var(--text3);font-family:monospace;margin-bottom:12px}
+.survey-card-meta{display:flex;gap:8px;flex-wrap:wrap}
+.survey-badge{font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500}
+.badge-active{background:#d4f5e9;color:#0a7c4e}
+.badge-inactive{background:#f5d4d4;color:#7c0a0a}
+.badge-type{background:#dff0ff;color:#015DAA}
+.survey-card-actions{display:flex;gap:6px;margin-top:12px}
+.survey-card-new{background:transparent;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:140px;gap:8px;color:var(--text3)}
+.survey-card-new:hover{border-color:var(--accent);color:var(--accent);background:rgba(1,93,170,.03)}
+.survey-card-new .icon{font-size:28px}
+
+/* Question cards */
+.q-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:10px}
+.q-card-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+.q-num{background:var(--accent);color:#fff;font-size:11px;font-weight:700;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.q-label{font-size:14px;font-weight:500;color:var(--text);line-height:1.5;flex:1}
+.q-type-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.06em}
+.badge-radio{background:#dff0ff;color:#015DAA}
+.badge-checkbox{background:#d4f5e9;color:#0a7c4e}
+.badge-slider{background:#fff3d4;color:#7a5a00}
+.q-options{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.q-option-pill{font-size:12px;padding:4px 10px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;gap:5px}
+.q-option-weight{font-size:10px;font-weight:700;color:var(--accent);background:rgba(1,93,170,.1);padding:1px 5px;border-radius:6px}
+.q-actions{display:flex;gap:6px;margin-top:12px}
+.axe-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:10px}
+.axe-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.axe-label{font-size:15px;font-weight:600;color:var(--accent)}
+.axe-questions{display:flex;flex-wrap:wrap;gap:6px}
+.axe-q-pill{font-size:12px;padding:3px 10px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text2)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(1,45,82,.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal{background:#fff;border-radius:12px;padding:2rem;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.15)}
+.modal h3{font-size:18px;font-weight:600;color:var(--accent);margin-bottom:1.5rem}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)}
+.options-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.option-row{display:flex;gap:8px;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px}
+.option-row input{flex:1;font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font-family:'DM Sans',sans-serif;outline:none}
+.option-row input:focus{border-color:var(--accent)}
+.option-weight{width:60px;text-align:center;font-size:13px}
+.option-weight-label{font-size:11px;color:var(--text3);white-space:nowrap}
+.remove-option{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px}
+.remove-option:hover{color:var(--danger)}
+.add-option-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent);cursor:pointer;background:none;border:1px dashed var(--border);padding:7px 14px;border-radius:var(--radius);width:100%;justify-content:center;margin-top:6px;font-family:'DM Sans',sans-serif;transition:all .15s}
+.add-option-btn:hover{background:var(--bg3);border-color:var(--accent)}
+.color-preview{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);display:inline-block;vertical-align:middle;margin-left:8px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--accent);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
+.toast.show{opacity:1}.toast.error{background:var(--danger)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:3rem;color:var(--text3);font-size:14px;border:1px dashed var(--border);border-radius:var(--radius);background:var(--bg2)}
+.color-row{display:flex;align-items:center;gap:8px}
+.color-row input[type=color]{width:40px;height:36px;padding:2px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:#fff}
+.color-row input[type=text]{flex:1}
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar" style="display:none">
+  <div class="topbar-left">
+    <span class="topbar-badge">Admin</span>
+    <h1>OICN</h1>
+    <div class="breadcrumb" id="breadcrumb">
+      <span>Questionnaires</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-email" id="topbar-email"></span>
+    <button class="btn btn-sm" onclick="signOut()" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)">Déconnexion</button>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- LOGIN -->
+  <div id="screen-login" class="screen active">
+    <div class="login-wrap">
+      <h2>Espace administrateur</h2>
+      <p>Connectez-vous pour gérer les questionnaires OICN.</p>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="admin@exemple.com" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label>Mot de passe</label>
+        <input type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()" />
+        <div class="error-msg" id="login-error" style="display:none"></div>
+      </div>
+      <button class="btn btn-primary" id="btn-login" onclick="login()" style="width:100%;margin-top:.5rem">Se connecter →</button>
+    </div>
+  </div>
+
+  <!-- SURVEYS LIST -->
+  <div id="screen-surveys" class="screen">
+    <div class="section-header">
+      <h2>Questionnaires</h2>
+    </div>
+    <div class="survey-grid" id="surveys-grid">
+      <div class="empty">Chargement…</div>
+    </div>
+  </div>
+
+  <!-- SURVEY EDITOR -->
+  <div id="screen-editor" class="screen">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('questions')">Questions</div>
+      <div class="tab" onclick="switchTab('axes')">Axes</div>
+      <div class="tab" onclick="switchTab('settings')">Paramètres</div>
+    </div>
+    <div id="tab-questions">
+      <div class="section-header">
+        <h2>Questions</h2>
+        <button class="btn btn-primary" onclick="openQuestionModal()">+ Ajouter</button>
+      </div>
+      <div id="questions-list"><div class="empty">Chargement…</div></div>
+    </div>
+    <div id="tab-axes" style="display:none">
+      <div class="section-header">
+        <h2>Axes thématiques</h2>
+        <button class="btn btn-primary" onclick="openAxeModal()">+ Ajouter</button>
+      </div>
+      <div id="axes-list"><div class="empty">Chargement…</div></div>
+    </div>
+    <div id="tab-settings" style="display:none">
+      <div class="section-header"><h2>Paramètres du questionnaire</h2></div>
+      <div id="settings-form"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- SURVEY MODAL -->
+<div class="modal-overlay" id="survey-modal" style="display:none" onclick="closeModalOnOverlay(event,'survey-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="survey-modal-title">Nouveau questionnaire</h3>
+    <div class="field">
+      <label>Titre</label>
+      <input type="text" id="s-title" placeholder="Ex : Usages de l'IA générative" />
+    </div>
+    <div class="field">
+      <label>Slug (identifiant URL)</label>
+      <input type="text" id="s-slug" placeholder="ia-generative" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')" />
+    </div>
+    <div class="field">
+      <label>Texte d'introduction</label>
+      <textarea id="s-intro" placeholder="Texte affiché avant le questionnaire…"></textarea>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Couleur principale</label>
+        <div class="color-row">
+          <input type="color" id="s-primary-picker" value="#015DAA" oninput="document.getElementById('s-primary').value=this.value">
+          <input type="text" id="s-primary" value="#015DAA" oninput="document.getElementById('s-primary-picker').value=this.value" placeholder="#015DAA" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Couleur d'accent</label>
+        <div class="color-row">
+          <input type="color" id="s-accent-picker" value="#80C1E8" oninput="document.getElementById('s-accent').value=this.value">
+          <input type="text" id="s-accent" value="#80C1E8" oninput="document.getElementById('s-accent-picker').value=this.value" placeholder="#80C1E8" />
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Type de résultats</label>
+      <select id="s-results-type">
+        <option value="bars">Barres de distribution + score moyen</option>
+        <option value="radar">Radar par axes</option>
+        <option value="gauge">Jauges par question</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Statut</label>
+      <select id="s-active">
+        <option value="true">Actif</option>
+        <option value="false">Inactif</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('survey-modal')">Annuler</button>
+      <button class="btn btn-primary" id="btn-save-survey" onclick="saveSurvey()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUESTION MODAL -->
+<div class="modal-overlay" id="q-modal" style="display:none" onclick="closeModalOnOverlay(event,'q-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="q-modal-title">Nouvelle question</h3>
+    <div class="field">
+      <label>Partie</label>
+      <select id="q-part">
+        <option value="1">Partie 1</option>
+        <option value="2">Partie 2</option>
+        <option value="3">Partie 3</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Libellé de la partie</label>
+      <input type="text" id="q-part-label" placeholder="Ex : Comment vous situez-vous face à l'IA ?" />
+    </div>
+    <div class="field">
+      <label>Texte de la question</label>
+      <textarea id="q-label" placeholder="Ex : Quelle phrase décrit le mieux votre état d'esprit ?"></textarea>
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <select id="q-type" onchange="renderOptionsEditor()">
+        <option value="radio">Radio — choix unique</option>
+        <option value="checkbox">Checkbox — choix multiples</option>
+        <option value="slider">Curseur — échelle 1 à 5</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Options <span style="color:var(--text3);font-weight:400;text-transform:none;font-size:11px">(texte + poids 1-5)</span></label>
+      <div id="options-editor"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('q-modal')">Annuler</button>
+      <button class="btn btn-primary" id="btn-save-q" onclick="saveQuestion()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- AXE MODAL -->
+<div class="modal-overlay" id="axe-modal" style="display:none" onclick="closeModalOnOverlay(event,'axe-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="axe-modal-title">Nouvel axe</h3>
+    <div class="field">
+      <label>Nom de l'axe</label>
+      <input type="text" id="axe-label" placeholder="Ex : Adoption, Éthique, Collaboration…" />
+    </div>
+    <div class="field">
+      <label>Questions associées</label>
+      <div id="axe-questions-picker" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('axe-modal')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveAxe()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://irmqvlawrzmgoqpnaoxr.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlybXF2bGF3cnptZ29xcG5hb3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Nzk4OTQsImV4cCI6MjA5NDI1NTg5NH0.ETZJ36oH7VUDrA69Fd7X8NvJN3yAYfALHz7nrR0Ixlw';
+
+let session = null;
+let allSurveys = [];
+let allQuestions = [];
+let allAxes = [];
+let currentSurvey = null;
+let editingQId = null;
+let editingAxeId = null;
+let editingSurveyId = null;
+
+// ── DB ────────────────────────────────────────────────
+async function db(method, table, body, params = '') {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/' + table + params, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Prefer': method === 'POST' ? 'return=representation' : 'return=minimal'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (method === 'DELETE' || (method === 'PATCH' && r.status === 204)) return {};
+  return r.json();
+}
+
+// ── AUTH ──────────────────────────────────────────────
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-pwd').value;
+  const errEl = document.getElementById('login-error');
+  if (!email || !password) { errEl.textContent = 'Veuillez remplir tous les champs.'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Connexion…';
+  errEl.style.display = 'none';
+  try {
+    const r = await fetch('/.netlify/functions/admin-auth', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await r.json();
+    if (!r.ok) { errEl.textContent = data.error || 'Identifiants incorrects.'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Se connecter →'; return; }
+    session = { token: data.token, email: data.email };
+    sessionStorage.setItem('oicn_admin', JSON.stringify({ ...session, exp: Date.now() + 8*60*60*1000 }));
+    enterAdmin();
+  } catch(e) { errEl.textContent = 'Erreur réseau.'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Se connecter →'; }
+}
+
+function checkSession() {
+  const s = sessionStorage.getItem('oicn_admin');
+  if (s) { try { const p = JSON.parse(s); if (p.exp > Date.now()) { session = p; enterAdmin(); return; } } catch(e) {} }
+}
+
+function enterAdmin() {
+  document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('topbar-email').textContent = session.email;
+  showScreen('screen-surveys');
+  loadSurveys();
+}
+
+function signOut() { sessionStorage.removeItem('oicn_admin'); session = null; document.getElementById('topbar').style.display = 'none'; showScreen('screen-login'); }
+
+// ── NAVIGATION ────────────────────────────────────────
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  ['questions','axes','settings'].forEach(t => document.getElementById('tab-'+t).style.display = t===tab?'block':'none');
+}
+
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast'+(isError?' error':'')+' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── SURVEYS ───────────────────────────────────────────
+async function loadSurveys() {
+  const data = await db('GET', 'surveys', null, '?order=created_at.desc');
+  if (!Array.isArray(data)) { showToast('Erreur: '+JSON.stringify(data), true); return; }
+  allSurveys = data;
+  renderSurveys();
+}
+
+function renderSurveys() {
+  const grid = document.getElementById('surveys-grid');
+  let html = '';
+  allSurveys.forEach(s => {
+    html += `<div class="survey-card">
+      <div class="survey-card-title">${esc(s.title)}</div>
+      <div class="survey-card-slug">?q=${esc(s.slug)}</div>
+      <div class="survey-card-meta">
+        <span class="survey-badge ${s.active?'badge-active':'badge-inactive'}">${s.active?'Actif':'Inactif'}</span>
+        <span class="survey-badge badge-type">${esc(s.results_type||'bars')}</span>
+      </div>
+      <div class="survey-card-actions">
+        <button class="btn btn-primary btn-sm" onclick="openSurveyEditor('${s.id}')">Éditer →</button>
+        <button class="btn btn-sm" onclick="openSurveyModal('${s.id}')">⚙️ Config</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSurvey('${s.id}')">Supprimer</button>
+      </div>
+    </div>`;
+  });
+  html += `<div class="survey-card survey-card-new btn" onclick="openSurveyModal()">
+    <div class="icon">＋</div>
+    <div style="font-size:14px;font-weight:500">Nouveau questionnaire</div>
+  </div>`;
+  grid.innerHTML = html;
+}
+
+function openSurveyModal(id=null) {
+  editingSurveyId = id;
+  document.getElementById('survey-modal-title').textContent = id ? 'Modifier le questionnaire' : 'Nouveau questionnaire';
+  const s = id ? allSurveys.find(x => x.id===id) : null;
+  document.getElementById('s-title').value = s?.title||'';
+  document.getElementById('s-slug').value = s?.slug||'';
+  document.getElementById('s-intro').value = s?.intro||'';
+  document.getElementById('s-primary').value = s?.primary_color||'#015DAA';
+  document.getElementById('s-primary-picker').value = s?.primary_color||'#015DAA';
+  document.getElementById('s-accent').value = s?.accent_color||'#80C1E8';
+  document.getElementById('s-accent-picker').value = s?.accent_color||'#80C1E8';
+  document.getElementById('s-results-type').value = s?.results_type||'bars';
+  document.getElementById('s-active').value = String(s?.active!==false);
+  document.getElementById('survey-modal').style.display = 'flex';
+}
+
+async function saveSurvey() {
+  const title = document.getElementById('s-title').value.trim();
+  const slug = document.getElementById('s-slug').value.trim();
+  if (!title||!slug) { showToast('Titre et slug requis.', true); return; }
+  const btn = document.getElementById('btn-save-survey');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+  const payload = {
+    title, slug,
+    intro: document.getElementById('s-intro').value.trim(),
+    primary_color: document.getElementById('s-primary').value,
+    accent_color: document.getElementById('s-accent').value,
+    results_type: document.getElementById('s-results-type').value,
+    active: document.getElementById('s-active').value === 'true'
+  };
+  let res;
+  if (editingSurveyId) res = await db('PATCH','surveys',payload,'?id=eq.'+editingSurveyId);
+  else res = await db('POST','surveys',payload);
+  btn.disabled=false; btn.textContent='Enregistrer';
+  if (res?.error) { showToast('Erreur: '+res.error.message,true); return; }
+  showToast(editingSurveyId?'Questionnaire mis à jour ✓':'Questionnaire créé ✓');
+  closeModal('survey-modal');
+  await loadSurveys();
+}
+
+async function deleteSurvey(id) {
+  if (!confirm('Supprimer ce questionnaire et toutes ses questions ?')) return;
+  await db('DELETE','questions',null,'?survey_id=eq.'+id);
+  await db('DELETE','axes',null,'?survey_id=eq.'+id);
+  await db('DELETE','surveys',null,'?id=eq.'+id);
+  showToast('Questionnaire supprimé');
+  await loadSurveys();
+}
+
+async function openSurveyEditor(id) {
+  currentSurvey = allSurveys.find(s => s.id===id);
+  setBreadcrumb(currentSurvey.title);
+  showScreen('screen-editor');
+  // Reset tabs
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active',i===0));
+  ['questions','axes','settings'].forEach((t,i) => document.getElementById('tab-'+t).style.display=i===0?'block':'none');
+  await loadQuestions();
+  await loadAxes();
+  renderSettings();
+}
+
+function setBreadcrumb(title) {
+  document.getElementById('breadcrumb').innerHTML =
+    '<a onclick="backToSurveys()">Questionnaires</a> <span style="color:rgba(255,255,255,.5)">/</span> <span>'+esc(title)+'</span>';
+}
+
+function backToSurveys() {
+  currentSurvey=null;
+  document.getElementById('breadcrumb').innerHTML='<span>Questionnaires</span>';
+  showScreen('screen-surveys');
+  loadSurveys();
+}
+
+// ── SETTINGS ──────────────────────────────────────────
+function renderSettings() {
+  const s = currentSurvey;
+  document.getElementById('tab-settings').innerHTML = `
+    <div style="max-width:480px">
+      <div class="field"><label>Titre</label><input type="text" id="cfg-title" value="${esc(s.title)}" /></div>
+      <div class="field"><label>Slug</label><input type="text" id="cfg-slug" value="${esc(s.slug)}" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')" /></div>
+      <div class="field"><label>Introduction</label><textarea id="cfg-intro">${esc(s.intro||'')}</textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Couleur principale</label>
+          <div class="color-row">
+            <input type="color" id="cfg-primary-picker" value="${s.primary_color||'#015DAA'}" oninput="document.getElementById('cfg-primary').value=this.value">
+            <input type="text" id="cfg-primary" value="${s.primary_color||'#015DAA'}" oninput="document.getElementById('cfg-primary-picker').value=this.value" />
+          </div>
+        </div>
+        <div class="field"><label>Couleur d'accent</label>
+          <div class="color-row">
+            <input type="color" id="cfg-accent-picker" value="${s.accent_color||'#80C1E8'}" oninput="document.getElementById('cfg-accent').value=this.value">
+            <input type="text" id="cfg-accent" value="${s.accent_color||'#80C1E8'}" oninput="document.getElementById('cfg-accent-picker').value=this.value" />
+          </div>
+        </div>
+      </div>
+      <div class="field"><label>Type de résultats</label>
+        <select id="cfg-results-type">
+          <option value="bars" ${s.results_type==='bars'?'selected':''}>Barres + score moyen</option>
+          <option value="radar" ${s.results_type==='radar'?'selected':''}>Radar par axes</option>
+          <option value="gauge" ${s.results_type==='gauge'?'selected':''}>Jauges par question</option>
+        </select>
+      </div>
+      <div class="field"><label>Statut</label>
+        <select id="cfg-active">
+          <option value="true" ${s.active!==false?'selected':''}>Actif</option>
+          <option value="false" ${s.active===false?'selected':''}>Inactif</option>
+        </select>
+      </div>
+      <div class="field"><label>URL de partage</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" readonly value="https://ia.infobesite.org/?q=${esc(s.slug)}" style="font-family:monospace;font-size:12px;color:var(--text3)" />
+          <button class="btn btn-sm" onclick="navigator.clipboard.writeText('https://ia.infobesite.org/?q=${esc(s.slug)}');showToast('Copié ✓')">Copier</button>
+        </div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="saveSettings()">Enregistrer les paramètres</button></div>
+    </div>`;
+}
+
+async function saveSettings() {
+  const payload = {
+    title: document.getElementById('cfg-title').value.trim(),
+    slug: document.getElementById('cfg-slug').value.trim(),
+    intro: document.getElementById('cfg-intro').value.trim(),
+    primary_color: document.getElementById('cfg-primary').value,
+    accent_color: document.getElementById('cfg-accent').value,
+    results_type: document.getElementById('cfg-results-type').value,
+    active: document.getElementById('cfg-active').value==='true'
+  };
+  if (!payload.title||!payload.slug) { showToast('Titre et slug requis.',true); return; }
+  await db('PATCH','surveys',payload,'?id=eq.'+currentSurvey.id);
+  currentSurvey = {...currentSurvey,...payload};
+  allSurveys = allSurveys.map(s => s.id===currentSurvey.id?currentSurvey:s);
+  setBreadcrumb(currentSurvey.title);
+  showToast('Paramètres enregistrés ✓');
+}
+
+// ── QUESTIONS ─────────────────────────────────────────
+async function loadQuestions() {
+  const data = await db('GET','questions',null,'?survey_id=eq.'+currentSurvey.id+'&order=part.asc,order_index.asc');
+  if (!Array.isArray(data)) { showToast('Erreur questions: '+JSON.stringify(data),true); return; }
+  allQuestions = data;
+  renderQuestions();
+}
+
+function renderQuestions() {
+  const container = document.getElementById('questions-list');
+  if (!allQuestions.length) { container.innerHTML='<div class="empty">Aucune question. Ajoutez-en une !</div>'; return; }
+  const byPart={};
+  allQuestions.forEach(q => { if(!byPart[q.part])byPart[q.part]={label:q.part_label,qs:[]}; byPart[q.part].qs.push(q); });
+  let html='';
+  Object.keys(byPart).sort().forEach(p => {
+    const {label,qs}=byPart[p];
+    html+=`<div class="section-label">Partie ${p} — ${esc(label)}</div>`;
+    qs.forEach((q,i)=>{
+      const badge=q.type==='radio'?'badge-radio':q.type==='checkbox'?'badge-checkbox':'badge-slider';
+      const typeLabel=q.type==='radio'?'Radio':q.type==='checkbox'?'Checkbox':'Curseur';
+      const opts=(q.options||[]).map(o=>`<span class="q-option-pill">${esc(o.text)}<span class="q-option-weight">${o.weight}</span></span>`).join('');
+      html+=`<div class="q-card">
+        <div class="q-card-header">
+          <div class="q-num">${q.order_index}</div>
+          <div style="flex:1">
+            <div class="q-label">${esc(q.label)}</div>
+            <span class="q-type-badge ${badge}">${typeLabel}</span>
+          </div>
+        </div>
+        <div class="q-options">${opts}</div>
+        <div class="q-actions">
+          <button class="btn btn-sm" onclick="openQuestionModal('${q.id}')">✏️ Modifier</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteQuestion('${q.id}')">Supprimer</button>
+          ${i>0?`<button class="btn btn-sm" onclick="moveQuestion('${q.id}','up')">↑</button>`:''}
+          ${i<qs.length-1?`<button class="btn btn-sm" onclick="moveQuestion('${q.id}','down')">↓</button>`:''}
+        </div>
+      </div>`;
+    });
+  });
+  container.innerHTML=html;
+}
+
+function openQuestionModal(id=null) {
+  editingQId=id;
+  document.getElementById('q-modal-title').textContent=id?'Modifier la question':'Nouvelle question';
+  if(id){
+    const q=allQuestions.find(x=>x.id===id);
+    document.getElementById('q-part').value=q.part;
+    document.getElementById('q-part-label').value=q.part_label;
+    document.getElementById('q-label').value=q.label;
+    document.getElementById('q-type').value=q.type;
+    renderOptionsEditor(q.options);
+  } else {
+    document.getElementById('q-part').value=1;
+    document.getElementById('q-part-label').value='';
+    document.getElementById('q-label').value='';
+    document.getElementById('q-type').value='radio';
+    renderOptionsEditor();
+  }
+  document.getElementById('q-modal').style.display='flex';
+}
+
+function renderOptionsEditor(opts=null){
+  const type=document.getElementById('q-type').value;
+  if(!opts) opts=type==='slider'
+    ?[{text:'Pas du tout',weight:1},{text:'Peu',weight:2},{text:'Modérément',weight:3},{text:'Plutôt',weight:4},{text:'Tout à fait',weight:5}]
+    :[{text:'',weight:1},{text:'',weight:2},{text:'',weight:3},{text:'',weight:4},{text:'',weight:5}];
+  const isSlider=type==='slider';
+  let html='<div class="options-list" id="opts-list">';
+  opts.forEach((o,i)=>{
+    html+=`<div class="option-row"><input type="text" placeholder="Texte de l'option" value="${esc(o.text)}" class="opt-text" />
+      <span class="option-weight-label">Poids</span>
+      <input type="number" min="1" max="5" value="${o.weight}" class="option-weight opt-weight" ${isSlider?'readonly style="background:#f0f8fd"':''} />
+      ${isSlider?'':`<button class="remove-option" onclick="removeOption(this)">×</button>`}</div>`;
+  });
+  html+='</div>';
+  if(!isSlider) html+='<button class="add-option-btn" onclick="addOption()">+ Ajouter une option</button>';
+  document.getElementById('options-editor').innerHTML=html;
+}
+
+function addOption(){const list=document.getElementById('opts-list');const count=list.children.length;const div=document.createElement('div');div.className='option-row';div.innerHTML=`<input type="text" placeholder="Texte de l'option" class="opt-text" /><span class="option-weight-label">Poids</span><input type="number" min="1" max="5" value="${Math.min(count+1,5)}" class="option-weight opt-weight" /><button class="remove-option" onclick="removeOption(this)">×</button>`;list.appendChild(div);}
+function removeOption(btn){btn.closest('.option-row').remove();}
+function getOptions(){return Array.from(document.querySelectorAll('#opts-list .option-row')).map(row=>({text:row.querySelector('.opt-text').value.trim(),weight:parseInt(row.querySelector('.opt-weight').value)||1}));}
+
+async function saveQuestion(){
+  const part=parseInt(document.getElementById('q-part').value);
+  const partLabel=document.getElementById('q-part-label').value.trim();
+  const label=document.getElementById('q-label').value.trim();
+  const type=document.getElementById('q-type').value;
+  const options=getOptions();
+  if(!label){showToast('Texte requis.',true);return;}
+  if(options.some(o=>!o.text)){showToast('Tous les textes d\'options sont requis.',true);return;}
+  const btn=document.getElementById('btn-save-q');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';
+  const partQ=allQuestions.filter(q=>q.part===part&&q.id!==editingQId);
+  const orderIndex=editingQId?allQuestions.find(q=>q.id===editingQId).order_index:(partQ.length?Math.max(...partQ.map(q=>q.order_index))+1:1);
+  const payload={survey_id:currentSurvey.id,part,part_label:partLabel,order_index:orderIndex,label,type,options};
+  let res;
+  if(editingQId) res=await db('PATCH','questions',payload,'?id=eq.'+editingQId);
+  else res=await db('POST','questions',payload);
+  btn.disabled=false;btn.textContent='Enregistrer';
+  if(res?.error){showToast('Erreur: '+res.error.message,true);return;}
+  showToast(editingQId?'Question mise à jour ✓':'Question ajoutée ✓');
+  closeModal('q-modal');
+  await loadQuestions();
+}
+
+async function deleteQuestion(id){if(!confirm('Supprimer cette question ?'))return;await db('DELETE','questions',null,'?id=eq.'+id);showToast('Supprimée');await loadQuestions();}
+
+async function moveQuestion(id,dir){
+  const q=allQuestions.find(x=>x.id===id);
+  const samePartQ=allQuestions.filter(x=>x.part===q.part).sort((a,b)=>a.order_index-b.order_index);
+  const idx=samePartQ.findIndex(x=>x.id===id);
+  const swapIdx=dir==='up'?idx-1:idx+1;
+  if(swapIdx<0||swapIdx>=samePartQ.length)return;
+  const swap=samePartQ[swapIdx];
+  await db('PATCH','questions',{order_index:swap.order_index},'?id=eq.'+id);
+  await db('PATCH','questions',{order_index:q.order_index},'?id=eq.'+swap.id);
+  await loadQuestions();
+}
+
+// ── AXES ──────────────────────────────────────────────
+async function loadAxes(){
+  const data=await db('GET','axes',null,'?survey_id=eq.'+currentSurvey.id+'&order=order_index.asc');
+  if(!Array.isArray(data)){showToast('Erreur axes: '+JSON.stringify(data),true);return;}
+  allAxes=data;renderAxes();
+}
+
+function renderAxes(){
+  const container=document.getElementById('axes-list');
+  if(!allAxes.length){container.innerHTML='<div class="empty">Aucun axe. Les axes permettent de calculer des scores thématiques.</div>';return;}
+  let html='';
+  allAxes.forEach(axe=>{
+    const qs=(axe.question_ids||[]).map(qid=>{const q=allQuestions.find(x=>x.id===qid);return q?`<span class="axe-q-pill">${esc(q.label.substring(0,60))}…</span>`:''}).join('');
+    html+=`<div class="axe-card"><div class="axe-card-header"><div class="axe-label">${esc(axe.label)}</div><div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="openAxeModal('${axe.id}')">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteAxe('${axe.id}')">Supprimer</button></div></div><div class="axe-questions">${qs||'<span style="font-size:13px;color:var(--text3)">Aucune question</span>'}</div></div>`;
+  });
+  container.innerHTML=html;
+}
+
+function openAxeModal(id=null){
+  editingAxeId=id;
+  document.getElementById('axe-modal-title').textContent=id?'Modifier l\'axe':'Nouvel axe';
+  const axe=id?allAxes.find(a=>a.id===id):null;
+  document.getElementById('axe-label').value=axe?.label||'';
+  const selectedIds=axe?.question_ids||[];
+  document.getElementById('axe-questions-picker').innerHTML=allQuestions.map(q=>`
+    <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:#fff;font-size:13px">
+      <input type="checkbox" value="${q.id}" ${selectedIds.includes(q.id)?'checked':''} style="margin-top:2px;accent-color:var(--accent)">
+      <span><strong style="color:var(--text3);font-size:11px">P${q.part}·Q${q.order_index}</strong> ${esc(q.label)}</span>
+    </label>`).join('')||'<p style="color:var(--text3);font-size:13px">Ajoutez d\'abord des questions.</p>';
+  document.getElementById('axe-modal').style.display='flex';
+}
+
+async function saveAxe(){
+  const label=document.getElementById('axe-label').value.trim();
+  if(!label){showToast('Nom requis.',true);return;}
+  const question_ids=Array.from(document.querySelectorAll('#axe-questions-picker input:checked')).map(cb=>cb.value);
+  const order_index=editingAxeId?allAxes.find(a=>a.id===editingAxeId).order_index:allAxes.length+1;
+  const payload={survey_id:currentSurvey.id,label,question_ids,order_index};
+  if(editingAxeId) await db('PATCH','axes',payload,'?id=eq.'+editingAxeId);
+  else await db('POST','axes',payload);
+  showToast(editingAxeId?'Axe mis à jour ✓':'Axe ajouté ✓');
+  closeModal('axe-modal');
+  await loadAxes();
+}
+
+async function deleteAxe(id){if(!confirm('Supprimer cet axe ?'))return;await db('DELETE','axes',null,'?id=eq.'+id);showToast('Supprimé');await loadAxes();}
+
+// ── UTILS ─────────────────────────────────────────────
+function closeModal(id){document.getElementById(id).style.display='none';}
+function closeModalOnOverlay(e,id){if(e.target===document.getElementById(id))closeModal(id);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+window.addEventListener('DOMContentLoaded',checkSession);
+</script>
+</body>
+</html>
