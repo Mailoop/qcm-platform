@@ -114,14 +114,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <p class="survey-intro"></p>
     <p>Un outil développé par l'<a href="https://www.infobesite.org">OICN</a>.</p>
   </div>
+  <div id="survey-list-home" class="home-cards" style="grid-template-columns:1fr"></div>
+  <div style="text-align:center;margin-top:2rem">
+    <a href="admin.html" style="font-size:12px;color:var(--text3);text-decoration:none;border-bottom:1px solid var(--border)">⚙️ Administration</a>
+  </div>
+</div>
+
+<div id="screen-roles" class="screen">
+  <div class="logo-wrap" style="align-items:center"><span class="logo-badge" id="roles-survey-badge">Questionnaire</span></div>
+  <div class="header">
+    <h1 id="roles-survey-title">Que souhaitez-vous faire ?</h1>
+  </div>
   <div class="home-cards home-cards-3">
-    <div class="home-card" onclick="openSurveyPicker('launch')">
+    <div class="home-card" onclick="showScreen('screen-manager-setup')">
       <span class="arrow">↗</span>
       <span class="icon">🚀</span>
       <h3>Lancer</h3>
       <p>Je suis manager — je veux lancer le questionnaire pour mon équipe</p>
     </div>
-    <div class="home-card" onclick="openSurveyPicker('member')">
+    <div class="home-card" onclick="showScreen('screen-member')">
       <span class="arrow">↗</span>
       <span class="icon">📋</span>
       <h3>Répondre</h3>
@@ -134,20 +145,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <p>Consulter les réponses agrégées de mon équipe</p>
     </div>
   </div>
-</div>
-
-<div id="screen-survey-picker" class="screen">
-  <div class="logo-wrap" style="align-items:center">
-    <img src="data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAAGNbWV0YQ" alt="OICN" style="display:none">
-    <span class="logo-badge">Choisir un questionnaire</span>
+  <div style="text-align:center;margin-top:2rem">
+    <a href="admin.html" style="font-size:12px;color:var(--text3);text-decoration:none;border-bottom:1px solid var(--border)">⚙️ Administration</a>
   </div>
-  <div class="header">
-    <h1>Questionnaires disponibles</h1>
-    <p>Sélectionnez le questionnaire que vous souhaitez utiliser.</p>
-  </div>
-  <div id="survey-list" class="home-cards" style="grid-template-columns:1fr"></div>
   <div class="btn-row" style="margin-top:1.5rem">
-    <button class="btn" onclick="showScreen('screen-home')">← Retour</button>
+    <button class="btn" onclick="showScreen('screen-home')">← Changer de questionnaire</button>
   </div>
 </div>
 
@@ -213,7 +215,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="error-msg" id="team-id-error" style="display:none">Veuillez saisir un identifiant d'équipe.</div>
   </div>
   <div class="btn-row">
-    <button class="btn" onclick="showScreen('screen-home')">← Retour</button>
+    <button class="btn" onclick="showScreen('screen-roles')">← Retour</button>
     <button class="btn btn-primary" onclick="startQuestionnaire()">Commencer →</button>
   </div>
 </div>
@@ -599,13 +601,9 @@ function renderResults(data,id,name){
   document.getElementById('results-container').innerHTML=html;
 }
 
-let pickerIntent = 'launch'; // 'launch' or 'member'
-
-async function openSurveyPicker(intent){
-  pickerIntent = intent;
-  const list = document.getElementById('survey-list');
+async function loadHomeSurveys(){
+  const list = document.getElementById('survey-list-home');
   list.innerHTML = '<div class="no-data">Chargement…</div>';
-  showScreen('screen-survey-picker');
   try {
     const r = await fetch(SUPABASE_URL+'/rest/v1/surveys?select=id,slug,title,intro&order=created_at.desc',{
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
@@ -613,9 +611,9 @@ async function openSurveyPicker(intent){
     const surveys = await r.json();
     if(!surveys.length){ list.innerHTML='<div class="no-data">Aucun questionnaire disponible.</div>'; return; }
     list.innerHTML = surveys.map(s=>`
-      <div class="home-card" data-slug="${s.slug}" onclick="selectSurveyFromPicker('${s.slug}')">
+      <div class="home-card" onclick="selectSurvey('${s.slug}')">
         <span class="arrow">↗</span>
-        <span class="icon">${pickerIntent==='launch'?'🚀':'📋'}</span>
+        <span class="icon">📋</span>
         <h3>${s.title}</h3>
         <p>${s.intro||''}</p>
       </div>`).join('');
@@ -624,15 +622,18 @@ async function openSurveyPicker(intent){
   }
 }
 
-async function selectSurveyFromPicker(slug){
+async function selectSurvey(slug){
   await loadSurveyData(slug);
   updateSurveyUI();
-  // Update URL with slug so it persists
   const url = new URL(window.location.href);
   url.searchParams.set('q', slug);
   window.history.replaceState({}, '', url.toString());
-  if(pickerIntent === 'launch') showScreen('screen-manager-setup');
-  else showScreen('screen-member');
+  // Update roles screen title
+  const badge = document.getElementById('roles-survey-badge');
+  const title = document.getElementById('roles-survey-title');
+  if(badge && SURVEY) badge.textContent = SURVEY.title;
+  if(title && SURVEY) title.textContent = SURVEY.title;
+  showScreen('screen-roles');
 }
 
 async function init(){
@@ -643,6 +644,8 @@ async function init(){
     updateSurveyUI();
   }
   checkUrlParams();
+  // Always load surveys on home
+  loadHomeSurveys();
 }
 window.addEventListener('DOMContentLoaded',init);
 </script>
