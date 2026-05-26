@@ -533,7 +533,7 @@ async function submitAnswers(){
   const btn=document.getElementById('btn-next');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Envoi…';
   try{
-    const res=await fetch(SUPABASE_URL+'/rest/v1/responses',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':'return=minimal'},body:JSON.stringify({team_id:teamId,team_name:teamName,survey_id:SURVEY?.id||null,answers:answers})});
+    const res=await fetch(SUPABASE_URL+'/rest/v1/responses',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':'return=minimal'},body:JSON.stringify({team_id:teamId,team_name:teamName,survey_id:SURVEY?.id||null,answers:answers,scores:computeScores()})});
     if(!res.ok)throw new Error('HTTP '+res.status);
     showScreen('screen-success');
   }catch(e){showToast('Erreur lors de l\'envoi. Vérifiez votre connexion.');btn.disabled=false;btn.textContent='Envoyer mes réponses →';}
