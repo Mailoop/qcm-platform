@@ -157,7 +157,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   <div class="logo-wrap" style="align-items:center"><span class="logo-badge">Nouveau questionnaire</span></div>
   <div class="header">
     <h1>Lancer un questionnaire</h1>
-    <p>Un identifiant unique sera généré. Vous recevrez par email le lien à partager à votre équipe et le lien pour consulter les résultats.</p>
+    <p>Un identifiant unique sera généré pour votre équipe.</p>
   </div>
   <div class="field-wrap">
     <label>Nom de l'équipe</label>
@@ -170,8 +170,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <small>Vous recevrez les deux liens par email. Conservez cet email.</small>
     <div class="error-msg" id="err-email" style="display:none">Veuillez saisir une adresse email valide.</div>
   </div>
+  <div class="field-wrap" style="margin-top:1.5rem">
+    <label style="margin-bottom:10px;display:block">Mode d'envoi aux participants</label>
+    <div style="display:flex;gap:10px;margin-bottom:0.5rem">
+      <button id="toggle-link" class="btn btn-primary" onclick="setDistribMode('link')" style="flex:1">🔗 Je partage le lien moi-même</button>
+      <button id="toggle-email" class="btn" onclick="setDistribMode('email')" style="flex:1">📧 Envoyer par email</button>
+    </div>
+  </div>
+  <div id="distrib-email-fields" style="display:none">
+    <div class="field-wrap">
+      <label>Adresses email des participants</label>
+      <textarea id="setup-recipients" rows="4" placeholder="Collez vos adresses — une par ligne, séparées par des virgules, points-virgules ou espaces. Toutes les adresses seront détectées automatiquement." style="width:100%;font-size:13px;padding:11px 15px;border:1px solid var(--border2);border-radius:8px;background:var(--bg3);color:var(--text);outline:none;resize:vertical;font-family:'DM Sans',sans-serif"></textarea>
+      <small id="recipients-count" style="color:var(--accent);font-weight:500;display:block;margin-top:5px"></small>
+      <div class="error-msg" id="err-recipients" style="display:none">Veuillez saisir au moins une adresse email valide.</div>
+    </div>
+    <div class="field-wrap">
+      <label>Date et heure d'envoi <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--text3)">(laisser vide pour un envoi immédiat)</span></label>
+      <div style="display:flex;gap:10px">
+        <input type="date" id="setup-send-date" style="flex:1;font-size:14px;padding:10px 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg3);color:var(--text);outline:none;font-family:'DM Sans',sans-serif" />
+        <input type="time" id="setup-send-time" value="09:00" style="width:120px;font-size:14px;padding:10px 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg3);color:var(--text);outline:none;font-family:'DM Sans',sans-serif" />
+      </div>
+      <div class="error-msg" id="err-send-date" style="display:none">La date d'envoi doit être dans le futur.</div>
+    </div>
+  </div>
   <div class="btn-row">
-    <button class="btn" onclick="showScreen('screen-home')">← Retour</button>
+    <button class="btn" onclick="showScreen('screen-roles')">← Retour</button>
     <button class="btn btn-primary" id="btn-setup-launch" onclick="launchQuestionnaire()">Générer mon questionnaire →</button>
   </div>
 </div>
@@ -332,6 +355,37 @@ function applySurveyTheme(survey) {
 
 let currentSection=0,answers={},teamId='',teamName='';
 
+let distribMode = 'link';
+
+function setDistribMode(mode) {
+  distribMode = mode;
+  document.getElementById('toggle-link').className = mode==='link' ? 'btn btn-primary' : 'btn';
+  document.getElementById('toggle-email').className = mode==='email' ? 'btn btn-primary' : 'btn';
+  document.getElementById('distrib-email-fields').style.display = mode==='email' ? 'block' : 'none';
+}
+
+function extractEmails(text) {
+  const re = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+  return [...new Set(text.match(re) || [])];
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('setup-recipients');
+  if (ta) {
+    ta.addEventListener('input', () => {
+      const emails = extractEmails(ta.value);
+      const el = document.getElementById('recipients-count');
+      if (el) el.textContent = emails.length ? emails.length + ' adresse' + (emails.length>1?'s':'') + ' détectée' + (emails.length>1?'s':'') : '';
+    });
+  }
+  // Set min date to today
+  const dateInput = document.getElementById('setup-send-date');
+  if (dateInput) {
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.min = today;
+  }
+});
+
 function generateId(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let id='TEAM-';for(let i=0;i<6;i++)id+=c[Math.floor(Math.random()*c.length)];return id;}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
@@ -343,6 +397,24 @@ async function launchQuestionnaire(){
   let ok=true;
   if(!name){document.getElementById('err-team-name').style.display='block';ok=false;}else document.getElementById('err-team-name').style.display='none';
   if(!email||!email.includes('@')){document.getElementById('err-email').style.display='block';ok=false;}else document.getElementById('err-email').style.display='none';
+
+  let recipients=[], sendAt=null;
+  if(distribMode==='email'){
+    const ta=document.getElementById('setup-recipients');
+    recipients=extractEmails(ta?.value||'');
+    if(!recipients.length){document.getElementById('err-recipients').style.display='block';ok=false;}
+    else document.getElementById('err-recipients').style.display='none';
+    const dateVal=document.getElementById('setup-send-date')?.value;
+    const timeVal=document.getElementById('setup-send-time')?.value||'09:00';
+    if(dateVal){
+      sendAt=new Date(dateVal+'T'+timeVal);
+      if(sendAt<=new Date()){document.getElementById('err-send-date').style.display='block';ok=false;}
+      else document.getElementById('err-send-date').style.display='none';
+    } else {
+      document.getElementById('err-send-date').style.display='none';
+    }
+  }
+
   if(!ok)return;
   const btn=document.getElementById('btn-setup-launch');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Génération…';
@@ -350,14 +422,28 @@ async function launchQuestionnaire(){
   const slugParam=SURVEY?'&q='+SURVEY.slug:'';
   const shareUrl=SITE_URL+'?team='+id+'&name='+encodeURIComponent(name)+slugParam;
   const resultsUrl=SITE_URL+'?results='+id+'&name='+encodeURIComponent(name)+slugParam;
+
+  // Toujours envoyer le récap au manager
   try{
     const r=await fetch('/.netlify/functions/send-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:email,teamName:name,teamId:id,shareUrl:shareUrl,resultsUrl:resultsUrl})});
-    console.log('Function status:', r.status);
-    const rBody=await r.text();
-    console.log('Function response:', rBody);
-    if(!r.ok) showToast('Email non envoye — les liens sont disponibles ci-dessous.');
-    if(!r.ok) showToast('Email non envoyé — les liens sont disponibles ci-dessous.');
-  }catch(e){showToast('Email non envoyé — les liens sont disponibles ci-dessous.');}
+    if(!r.ok) showToast('Email manager non envoyé — les liens sont disponibles ci-dessous.');
+  }catch(e){showToast('Email manager non envoyé — les liens sont disponibles ci-dessous.');}
+
+  // Envoi aux participants si mode email
+  if(distribMode==='email' && recipients.length){
+    try{
+      const r=await fetch('/.netlify/functions/send-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        mode:'bulk',
+        recipients,
+        teamName:name,
+        teamId:id,
+        shareUrl,
+        sendAt:sendAt?sendAt.toISOString():null
+      })});
+      if(!r.ok) showToast('Envoi participants échoué — vérifiez votre config Postmark.');
+    }catch(e){showToast('Envoi participants échoué.');}
+  }
+
   document.getElementById('confirm-email').textContent=email;
   document.getElementById('share-link').value=shareUrl;
   document.getElementById('results-link').value=resultsUrl;
@@ -567,7 +653,8 @@ function renderResults(data,id,name){
   const n=data.length;
   const lastDate=new Date(data[data.length-1].created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
   let html='<div class="results-header"><div class="results-header-team">'+name+'</div><div class="results-header-id">Identifiant : '+id+'</div></div>';
-  html+='<div class="stat-grid"><div class="stat-card"><div class="stat-num">'+n+'</div><div class="stat-label">Répondant·s</div></div><div class="stat-card"><div class="stat-num">12</div><div class="stat-label">Questions</div></div><div class="stat-card"><div class="stat-num" style="font-size:13px;line-height:1.4;padding-top:4px">'+lastDate+'</div><div class="stat-label">Dernière réponse</div></div></div>';
+  const totalQ=QUESTIONS.reduce((a,s)=>a+s.questions.length,0);
+  html+='<div class="stat-grid"><div class="stat-card"><div class="stat-num">'+n+'</div><div class="stat-label">Répondant·s</div></div><div class="stat-card"><div class="stat-num">'+totalQ+'</div><div class="stat-label">Questions</div></div><div class="stat-card"><div class="stat-num" style="font-size:13px;line-height:1.4;padding-top:4px">'+lastDate+'</div><div class="stat-label">Dernière réponse</div></div></div>';
   QUESTIONS.forEach(sec=>{
     html+='<div class="section-label">'+sec.section+'</div>';
     sec.questions.forEach(q=>{
