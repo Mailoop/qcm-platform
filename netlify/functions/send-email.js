@@ -4,7 +4,96 @@ exports.handler = async function(event) {
   }
   let payload;
   try { payload = JSON.parse(event.body); } catch(e) { return { statusCode: 400, body: 'Invalid JSON' }; }
+
+  const POSTMARK_KEY = process.env.POSTMARK_API_KEY;
+  const FROM = 'arthur@infobesite.org';
+
+  // ── MODE BULK : envoi aux participants (immédiat ou planifié) ──
+  if (payload.mode === 'bulk') {
+    const { recipients, teamName, teamId, shareUrl, sendAt } = payload;
+    if (!recipients || !recipients.length) return { statusCode: 400, body: 'No recipients' };
+
+    const memberHtml = (email) => `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#C7E7F0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#C7E7F0;padding:40px 20px">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">
+<tr><td style="background:#015DAA;border-radius:12px 12px 0 0;padding:32px 36px">
+  <div style="color:#C7E7F0;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px">OICN</div>
+  <div style="color:#ffffff;font-size:19px;font-weight:600;line-height:1.3">Usages et perceptions<br>de l'IA générative</div>
+</td></tr>
+<tr><td style="background:#ffffff;padding:36px 36px 28px">
+  <h2 style="font-size:20px;font-weight:600;color:#015DAA;margin:0 0 12px">Votre équipe vous invite à répondre</h2>
+  <p style="font-size:14px;color:#444;margin:0 0 8px;line-height:1.7">
+    <strong style="color:#012d52">${teamName}</strong> vous invite à participer au questionnaire sur les usages et perceptions de l'IA générative.
+  </p>
+  <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.7">Cela prend environ 5 à 10 minutes. Vos réponses sont anonymes et agrégées.</p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px">
+    <tr>
+      <td align="center">
+        <a href="${shareUrl}" style="background:#015DAA;color:#fff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;display:inline-block">Répondre au questionnaire →</a>
+      </td>
+    </tr>
+  </table>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fbfe;border:1px solid #80C1E8;border-radius:8px;margin-bottom:28px">
+    <tr>
+      <td style="padding:13px 16px;font-size:12px;color:#444;word-break:break-all;font-family:monospace">
+        <a href="${shareUrl}" style="color:#015DAA;text-decoration:none">${shareUrl}</a>
+      </td>
+    </tr>
+  </table>
+  <p style="font-size:12px;color:#888;line-height:1.7;margin:0;padding-top:20px;border-top:1px solid #C7E7F0">
+    Cet email vous a été envoyé par votre équipe via la plateforme OICN.<br>
+    Identifiant d'équipe : <strong style="font-family:monospace">${teamId}</strong>
+  </p>
+</td></tr>
+<tr><td style="background:#015DAA;border-radius:0 0 12px 12px;padding:18px 36px">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="font-size:12px;color:#80C1E8">L'équipe OICN</td>
+      <td align="right"><a href="https://www.infobesite.org" style="font-size:12px;color:#C7E7F0;text-decoration:none">www.infobesite.org</a></td>
+    </tr>
+  </table>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+
+    // Postmark batch messages (max 500 par appel)
+    const messages = recipients.map(to => ({
+      From: FROM,
+      To: to,
+      Subject: `${teamName} vous invite à répondre au questionnaire OICN`,
+      HtmlBody: memberHtml(to),
+      TextBody: `${teamName} vous invite à répondre au questionnaire OICN sur les usages de l'IA générative.\n\nLien : ${shareUrl}\n\n— OICN`,
+      MessageStream: 'outbound',
+      ...(sendAt ? { ScheduledAt: sendAt } : {})
+    }));
+
+    const chunks = [];
+    for (let i = 0; i < messages.length; i += 500) chunks.push(messages.slice(i, i + 500));
+
+    let errors = 0;
+    for (const chunk of chunks) {
+      const r = await fetch('https://api.postmarkapp.com/email/batch', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Postmark-Server-Token': POSTMARK_KEY },
+        body: JSON.stringify(chunk)
+      });
+      if (!r.ok) errors++;
+      const body = await r.json();
+      console.log('Batch result:', JSON.stringify(body).substring(0, 300));
+    }
+
+    if (errors) return { statusCode: 500, body: JSON.stringify({ ok: false, errors }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true, sent: recipients.length, scheduled: !!sendAt }) };
+  }
+
+  // ── MODE MANAGER : récap avec les deux liens ──
   const { to, teamName, teamId, shareUrl, resultsUrl } = payload;
+  console.log('Sending to:', to, 'team:', teamName);
+
   console.log('Sending to:', to, 'team:', teamName);
 
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
