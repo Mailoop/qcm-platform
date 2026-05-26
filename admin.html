@@ -590,14 +590,39 @@ async function loadQuestions() {
 }
 
 function renderQuestions() {
+  // Reconstruire allSections depuis les questions existantes
+  const partsFromQ = {};
+  allQuestions.forEach(q => {
+    if (!partsFromQ[q.part]) partsFromQ[q.part] = q.part_label || ('Section ' + q.part);
+  });
+  // Fusionner avec allSections (sections manuelles sans questions)
+  allSections = allSections.filter(s => !partsFromQ[s.part]);
+  Object.entries(partsFromQ).forEach(([p, label]) => {
+    const parts2 = label.split(' — ');
+    allSections.push({ part: parseInt(p), label: parts2[0], desc: parts2[1]||'' });
+  });
+  allSections.sort((a,b) => a.part - b.part);
+
   const container = document.getElementById('questions-list');
-  if (!allQuestions.length) { container.innerHTML='<div class="empty">Aucune question. Ajoutez-en une !</div>'; return; }
+  if (!allQuestions.length && !allSections.length) {
+    container.innerHTML='<div class="empty">Aucune question. Ajoutez une section puis des questions !</div>';
+    renderPreview();
+    return;
+  }
+
   const byPart={};
   allQuestions.forEach(q => { if(!byPart[q.part])byPart[q.part]={label:q.part_label,qs:[]}; byPart[q.part].qs.push(q); });
+  // Ajouter sections vides
+  allSections.forEach(s => { if(!byPart[s.part]) byPart[s.part]={label:s.label,qs:[]}; });
+
   let html='';
-  Object.keys(byPart).sort().forEach(p => {
+  Object.keys(byPart).sort((a,b)=>a-b).forEach(p => {
     const {label,qs}=byPart[p];
-    html+=`<div class="section-label">Partie ${p} — ${esc(label)}</div>`;
+    html+=`<div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Section ${p} — ${esc(label)}</span>
+      <button class="btn btn-sm" onclick="openSectionModal(${p})" style="font-size:11px;padding:3px 8px">✏️</button>
+    </div>`;
+    if(!qs.length) html+='<div style="font-size:12px;color:var(--text3);padding:8px 4px;font-style:italic">Section vide</div>';
     qs.forEach((q,i)=>{
       const badge=q.type==='radio'?'badge-radio':q.type==='checkbox'?'badge-checkbox':'badge-slider';
       const typeLabel=q.type==='radio'?'Radio':q.type==='checkbox'?'Checkbox':'Curseur';
@@ -621,6 +646,7 @@ function renderQuestions() {
     });
   });
   container.innerHTML=html;
+  renderPreview();
 }
 
 function openQuestionModal(id=null) {
@@ -889,25 +915,7 @@ function renderPreview() {
   pane.innerHTML = html;
 }
 
-// Patch renderQuestions pour aussi mettre à jour l'aperçu et les sections
-const _origRenderQuestions = renderQuestions;
-function renderQuestions() {
-  // Reconstruire allSections depuis les questions
-  const parts = {};
-  allQuestions.forEach(q => {
-    if (!parts[q.part]) parts[q.part] = q.part_label || ('Section ' + q.part);
-  });
-  // Garder les sections manuelles qui n'ont pas encore de questions
-  allSections = allSections.filter(s => !parts[s.part]);
-  Object.entries(parts).forEach(([p, label]) => {
-    const parts2 = label.split(' — ');
-    allSections.push({ part: parseInt(p), label: parts2[0], desc: parts2[1]||'' });
-  });
-  allSections.sort((a,b)=>a.part-b.part);
-
-  _origRenderQuestions();
-  renderPreview();
-}
+// renderQuestions enrichi ci-dessous (fusionné pour éviter récursion)
 
 function closeModalOnOverlay(e,id){if(e.target===document.getElementById(id))closeModal(id);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
