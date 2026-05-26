@@ -771,11 +771,34 @@ function getWeight(q, answerVal){
 
 
 function computeAxeScore(response, axe) {
-  // Calcule la moyenne des scores pour les questions de cet axe
+  // Essaie d'abord les scores précalculés
   const scores = response.scores || {};
-  const vals = (axe.question_ids || [])
+  let vals = (axe.question_ids || [])
     .map(qid => scores[qid])
-    .filter(v => v !== undefined && v !== null);
+    .filter(v => v !== undefined && v !== null && typeof v === 'number');
+
+  // Fallback sur answers si scores absent ou vide
+  if (!vals.length && response.answers) {
+    const answers = response.answers;
+    vals = (axe.question_ids || []).map(qid => {
+      const ans = answers[qid];
+      if (ans === undefined || ans === null) return null;
+      // Chercher le poids dans QUESTIONS
+      for (const sec of QUESTIONS) {
+        const q = sec.questions.find(x => x.id === qid);
+        if (q) {
+          if (Array.isArray(ans)) {
+            const ws = ans.map(i => q.options[i]?.weight || i + 1);
+            return ws.length ? ws.reduce((a,b)=>a+b,0)/ws.length : null;
+          }
+          return q.options[ans]?.weight || (typeof ans === 'number' ? ans + 1 : null);
+        }
+      }
+      // Dernier recours : ans+1 si c'est un index
+      return typeof ans === 'number' ? ans + 1 : null;
+    }).filter(v => v !== null);
+  }
+
   if (!vals.length) return null;
   return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
 }
@@ -793,7 +816,10 @@ function renderAxesChart(data, axes) {
     return { x, y, i };
   }).filter(p => p.x !== null && p.y !== null);
 
-  if (!points.length) return '';
+  console.log('[Axes chart] data:', data.length, 'points valides:', points.length, 'axeX ids:', axeX.question_ids, 'axeY ids:', axeY.question_ids);
+  if (data.length) console.log('[Axes chart] exemple réponse:', JSON.stringify({scores: data[0].scores, answers: data[0].answers}).substring(0,300));
+
+  if (!points.length) return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1rem;color:var(--text3);font-size:13px">⚠️ Aucun score calculable pour les axes définis. Vérifiez que les questions des axes correspondent aux questions du questionnaire.</div>';
 
   // Bornes : min/max des poids (générique 1-5, ajustable)
   const allX = points.map(p => p.x);
