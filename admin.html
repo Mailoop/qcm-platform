@@ -654,18 +654,24 @@ function openQuestionModal(id=null) {
   document.getElementById('q-modal-title').textContent=id?'Modifier la question':'Nouvelle question';
   if(id){
     const q=allQuestions.find(x=>x.id===id);
-    document.getElementById('q-part').value=q.part;
-    document.getElementById('q-part-label').value=q.part_label;
+    document.getElementById('q-part-label').value=q.part_label||'';
     document.getElementById('q-label').value=q.label;
     document.getElementById('q-type').value=q.type;
     renderOptionsEditor(q.options);
+    populateSectionSelect(q.part);
   } else {
-    document.getElementById('q-part').value=1;
+    const maxPart=allSections.length?Math.max(...allSections.map(s=>s.part)):1;
     document.getElementById('q-part-label').value='';
     document.getElementById('q-label').value='';
     document.getElementById('q-type').value='radio';
     renderOptionsEditor();
+    populateSectionSelect(maxPart);
   }
+  const select=document.getElementById('q-part');
+  select.onchange=function(){
+    if(this.value==='__new'){closeModal('q-modal');openSectionModal();return;}
+    onPartChange();
+  };
   document.getElementById('q-modal').style.display='flex';
 }
 
@@ -825,45 +831,23 @@ function onPartChange() {
   labelField.style.display = (!hasQuestions && val !== '__new') ? 'block' : 'none';
 }
 
-function populateSectionSelect() {
+function populateSectionSelect(selectedPart=null) {
   const select = document.getElementById('q-part');
   if (!select) return;
-  const parts = [...new Set(allQuestions.map(q=>q.part))].sort();
-  // Ajouter aussi les sections sans questions
+  const parts = [...new Set(allQuestions.map(q=>q.part))];
   allSections.forEach(s => { if (!parts.includes(s.part)) parts.push(s.part); });
   parts.sort((a,b)=>a-b);
+  if (!parts.length) parts.push(1);
 
   select.innerHTML = parts.map(p => {
-    const sec = allSections.find(s=>s.part===p) || allQuestions.find(q=>q.part===p);
-    const label = sec?.label || sec?.part_label || ('Section '+p);
-    return `<option value="${p}">${p}. ${label.split(' — ')[0]}</option>`;
+    const sec = allSections.find(s=>s.part===p);
+    const label = sec?.label || allQuestions.find(q=>q.part===p)?.part_label || ('Section '+p);
+    return `<option value="${p}" ${selectedPart===p?'selected':''}>${p}. ${label.split(' — ')[0]}</option>`;
   }).join('');
-  // Option nouvelle section
   select.innerHTML += `<option value="__new">＋ Nouvelle section…</option>`;
 }
 
-// Override openQuestionModal pour populer le select
-const _origOpenQModal = openQuestionModal;
-function openQuestionModal(id=null) {
-  _origOpenQModal(id);
-  populateSectionSelect();
-  if (id) {
-    const q = allQuestions.find(x=>x.id===id);
-    if (q) {
-      document.getElementById('q-part').value = q.part;
-      document.getElementById('q-part-label').value = q.part_label || '';
-    }
-  }
-  const select = document.getElementById('q-part');
-  select.onchange = function() {
-    if (this.value === '__new') {
-      closeModal('q-modal');
-      openSectionModal();
-      return;
-    }
-    onPartChange();
-  };
-}
+// openQuestionModal enrichi directement dans la fonction originale ci-dessus
 
 // ── APERÇU LIVE ──
 function renderPreview() {
