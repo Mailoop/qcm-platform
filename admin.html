@@ -162,11 +162,29 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="tab" onclick="switchTab('settings')">Paramètres</div>
     </div>
     <div id="tab-questions">
-      <div class="section-header">
-        <h2>Questions</h2>
-        <button class="btn btn-primary" onclick="openQuestionModal()">+ Ajouter</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+        <!-- Colonne gauche : outils de construction -->
+        <div>
+          <div class="section-header" style="margin-bottom:1rem">
+            <h2>Construire</h2>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:1.5rem">
+            <button class="btn btn-primary" onclick="openSectionModal()" style="justify-content:center">＋ Ajouter une section</button>
+            <button class="btn" onclick="openQuestionModal()" style="justify-content:center;border-color:var(--accent);color:var(--accent)">＋ Ajouter une question</button>
+          </div>
+          <div id="questions-list"><div class="empty">Chargement…</div></div>
+        </div>
+        <!-- Colonne droite : aperçu live -->
+        <div style="position:sticky;top:80px">
+          <div class="section-header" style="margin-bottom:1rem">
+            <h2>Aperçu</h2>
+            <span style="font-size:11px;color:var(--text3);font-weight:400">Mise à jour en temps réel</span>
+          </div>
+          <div id="preview-pane" style="background:#C7E7F0;border-radius:12px;padding:20px;min-height:200px;font-family:'DM Sans',sans-serif">
+            <div style="color:var(--text3);font-size:13px;text-align:center;padding:2rem">Ajoutez des sections et des questions pour voir l'aperçu</div>
+          </div>
+        </div>
       </div>
-      <div id="questions-list"><div class="empty">Chargement…</div></div>
     </div>
     <div id="tab-axes" style="display:none">
       <div class="section-header">
@@ -237,20 +255,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
+<!-- SECTION MODAL -->
+<div class="modal-overlay" id="section-modal" style="display:none" onclick="closeModalOnOverlay(event,'section-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="section-modal-title">Nouvelle section</h3>
+    <div class="field">
+      <label>Titre de la section</label>
+      <input type="text" id="s-sec-title" placeholder="Ex : Rapport à l'IA au quotidien" />
+    </div>
+    <div class="field">
+      <label>Description <span style="font-weight:400;text-transform:none;color:var(--text3)">(optionnel)</span></label>
+      <textarea id="s-sec-desc" placeholder="Contexte ou consigne pour cette section…" style="min-height:60px"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('section-modal')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveSection()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <!-- QUESTION MODAL -->
 <div class="modal-overlay" id="q-modal" style="display:none" onclick="closeModalOnOverlay(event,'q-modal')">
   <div class="modal" onclick="event.stopPropagation()">
     <h3 id="q-modal-title">Nouvelle question</h3>
     <div class="field">
-      <label>Partie</label>
-      <select id="q-part">
-        <option value="1">Partie 1</option>
-        <option value="2">Partie 2</option>
-        <option value="3">Partie 3</option>
+      <label>Section</label>
+      <select id="q-part" onchange="onPartChange()">
+        <option value="1">Section 1</option>
       </select>
     </div>
-    <div class="field">
-      <label>Libellé de la partie</label>
+    <div class="field" id="q-part-label-field" style="display:none">
+      <label>Titre de la section <span style="font-weight:400;text-transform:none;color:var(--text3)">(si nouvelle section)</span></label>
       <input type="text" id="q-part-label" placeholder="Ex : Comment vous situez-vous face à l'IA ?" />
     </div>
     <div class="field">
@@ -716,6 +751,164 @@ async function deleteAxe(id){if(!confirm('Supprimer cet axe ?'))return;await db(
 
 // ── UTILS ─────────────────────────────────────────────
 function closeModal(id){document.getElementById(id).style.display='none';}
+// ── SECTIONS ──
+let allSections = []; // {part, label, desc}
+let editingSectionPart = null;
+
+function openSectionModal(part=null) {
+  editingSectionPart = part;
+  const existing = part ? allSections.find(s=>s.part===part) : null;
+  document.getElementById('section-modal-title').textContent = part ? 'Modifier la section' : 'Nouvelle section';
+  document.getElementById('s-sec-title').value = existing?.label || '';
+  document.getElementById('s-sec-desc').value = existing?.desc || '';
+  document.getElementById('section-modal').style.display = 'flex';
+}
+
+async function saveSection() {
+  const title = document.getElementById('s-sec-title').value.trim();
+  if (!title) { showToast('Veuillez saisir un titre de section.', true); return; }
+  const desc = document.getElementById('s-sec-desc').value.trim();
+
+  if (editingSectionPart) {
+    // Mettre à jour toutes les questions de cette section
+    const qs = allQuestions.filter(q => q.part === editingSectionPart);
+    for (const q of qs) {
+      await db('PATCH','questions',{part_label: title + (desc ? ' — ' + desc : '')},'?id=eq.'+q.id);
+    }
+    const s = allSections.find(s=>s.part===editingSectionPart);
+    if (s) { s.label = title; s.desc = desc; }
+  } else {
+    // Nouvelle section : calculer le prochain numéro de part
+    const maxPart = allSections.length ? Math.max(...allSections.map(s=>s.part)) : 0;
+    const newPart = maxPart + 1;
+    allSections.push({ part: newPart, label: title, desc });
+    // Pas de question encore — on va juste mettre à jour le sélecteur
+  }
+
+  closeModal('section-modal');
+  await loadQuestions();
+  renderPreview();
+}
+
+function onPartChange() {
+  const select = document.getElementById('q-part');
+  const val = select.value;
+  const labelField = document.getElementById('q-part-label-field');
+  // Afficher le champ titre seulement si c'est une section sans questions encore
+  const hasQuestions = allQuestions.some(q => q.part === parseInt(val));
+  labelField.style.display = (!hasQuestions && val !== '__new') ? 'block' : 'none';
+}
+
+function populateSectionSelect() {
+  const select = document.getElementById('q-part');
+  if (!select) return;
+  const parts = [...new Set(allQuestions.map(q=>q.part))].sort();
+  // Ajouter aussi les sections sans questions
+  allSections.forEach(s => { if (!parts.includes(s.part)) parts.push(s.part); });
+  parts.sort((a,b)=>a-b);
+
+  select.innerHTML = parts.map(p => {
+    const sec = allSections.find(s=>s.part===p) || allQuestions.find(q=>q.part===p);
+    const label = sec?.label || sec?.part_label || ('Section '+p);
+    return `<option value="${p}">${p}. ${label.split(' — ')[0]}</option>`;
+  }).join('');
+  // Option nouvelle section
+  select.innerHTML += `<option value="__new">＋ Nouvelle section…</option>`;
+}
+
+// Override openQuestionModal pour populer le select
+const _origOpenQModal = openQuestionModal;
+function openQuestionModal(id=null) {
+  _origOpenQModal(id);
+  populateSectionSelect();
+  if (id) {
+    const q = allQuestions.find(x=>x.id===id);
+    if (q) {
+      document.getElementById('q-part').value = q.part;
+      document.getElementById('q-part-label').value = q.part_label || '';
+    }
+  }
+  const select = document.getElementById('q-part');
+  select.onchange = function() {
+    if (this.value === '__new') {
+      closeModal('q-modal');
+      openSectionModal();
+      return;
+    }
+    onPartChange();
+  };
+}
+
+// ── APERÇU LIVE ──
+function renderPreview() {
+  const pane = document.getElementById('preview-pane');
+  if (!pane) return;
+
+  if (!allQuestions.length && !allSections.length) {
+    pane.innerHTML = '<div style="color:#5a8aaa;font-size:13px;text-align:center;padding:2rem">Ajoutez des sections et des questions pour voir l\'aperçu</div>';
+    return;
+  }
+
+  const byPart = {};
+  allQuestions.forEach(q => {
+    if (!byPart[q.part]) byPart[q.part] = { label: q.part_label, qs: [] };
+    byPart[q.part].qs.push(q);
+  });
+  // Ajouter sections sans questions
+  allSections.forEach(s => {
+    if (!byPart[s.part]) byPart[s.part] = { label: s.label + (s.desc?' — '+s.desc:''), qs: [] };
+  });
+
+  let html = '';
+  Object.keys(byPart).sort((a,b)=>a-b).forEach(p => {
+    const sec = byPart[p];
+    const parts = (sec.label||'').split(' — ');
+    html += `<div style="margin-bottom:1.5rem">
+      <div style="font-size:10px;font-weight:700;color:#5a8aaa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #80C1E8;display:flex;align-items:center;justify-content:space-between">
+        <span>📂 ${esc(parts[0])}${parts[1]?'<span style="font-weight:400;opacity:.7"> — '+esc(parts[1])+'</span>':''}</span>
+        <button onclick="openSectionModal(${p})" style="background:none;border:none;cursor:pointer;font-size:11px;color:#5a8aaa;padding:2px 6px;border-radius:4px" title="Modifier la section">✏️</button>
+      </div>`;
+    if (!sec.qs.length) {
+      html += '<div style="font-size:12px;color:#80C1E8;font-style:italic;padding:8px 0">Section vide — ajoutez des questions</div>';
+    }
+    sec.qs.forEach((q, i) => {
+      html += `<div style="background:#fff;border:1px solid #80C1E8;border-radius:8px;padding:12px;margin-bottom:8px">
+        <div style="font-size:11px;color:#015DAA;font-weight:600;margin-bottom:6px">${q.order_index}. <span style="background:rgba(1,93,170,.08);padding:2px 7px;border-radius:10px;font-size:10px">${q.type}</span></div>
+        <div style="font-size:13px;color:#012d52;line-height:1.5;margin-bottom:8px">${esc(q.label)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${(q.options||[]).map(o=>`<span style="font-size:11px;background:#C7E7F0;color:#015DAA;padding:2px 8px;border-radius:10px">${esc(o.text||o)} <span style="opacity:.6">×${o.weight||'?'}</span></span>`).join('')}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button onclick="openQuestionModal('${q.id}')" style="background:none;border:1px solid #80C1E8;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;color:#015DAA">✏️ Modifier</button>
+          <button onclick="deleteQuestion('${q.id}')" style="background:none;border:1px solid #e8c0bc;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;color:#c0392b">🗑 Supprimer</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  pane.innerHTML = html;
+}
+
+// Patch renderQuestions pour aussi mettre à jour l'aperçu et les sections
+const _origRenderQuestions = renderQuestions;
+function renderQuestions() {
+  // Reconstruire allSections depuis les questions
+  const parts = {};
+  allQuestions.forEach(q => {
+    if (!parts[q.part]) parts[q.part] = q.part_label || ('Section ' + q.part);
+  });
+  // Garder les sections manuelles qui n'ont pas encore de questions
+  allSections = allSections.filter(s => !parts[s.part]);
+  Object.entries(parts).forEach(([p, label]) => {
+    const parts2 = label.split(' — ');
+    allSections.push({ part: parseInt(p), label: parts2[0], desc: parts2[1]||'' });
+  });
+  allSections.sort((a,b)=>a.part-b.part);
+
+  _origRenderQuestions();
+  renderPreview();
+}
+
 function closeModalOnOverlay(e,id){if(e.target===document.getElementById(id))closeModal(id);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
