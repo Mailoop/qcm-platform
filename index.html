@@ -1287,9 +1287,12 @@ async function exportPDF() {
     const canvas = await html2canvas(el, {
       scale: 2,
       useCORS: true,
-      backgroundColor: '#C7E7F0',
+      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#C7E7F0',
       logging: false,
-      windowWidth: 700,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      width: el.offsetWidth,
+      height: el.scrollHeight,
     });
 
     const { jsPDF } = window.jspdf;
