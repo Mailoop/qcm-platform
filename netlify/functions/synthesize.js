@@ -20,8 +20,8 @@ exports.handler = async function(event) {
   }
 
   const payload = JSON.stringify({
-    model: 'claude-sonnet-4-5-20251001',
-    max_tokens: 800,
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1000,
     messages: [{ role: 'user', content: prompt }]
   });
 
@@ -45,7 +45,12 @@ exports.handler = async function(event) {
         try {
           const json = JSON.parse(data);
           if (res.statusCode !== 200) {
-            resolve({ statusCode: res.statusCode, body: JSON.stringify({ error: json.error?.message || 'Erreur API' }) });
+            // Retourner la réponse brute pour débugger
+            resolve({
+              statusCode: res.statusCode,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ error: json.error?.message || JSON.stringify(json) })
+            });
           } else {
             resolve({
               statusCode: 200,
@@ -54,13 +59,13 @@ exports.handler = async function(event) {
             });
           }
         } catch(e) {
-          resolve({ statusCode: 500, body: JSON.stringify({ error: 'Parse error: ' + e.message }) });
+          resolve({ statusCode: 500, body: JSON.stringify({ error: 'Parse error: ' + e.message + ' raw: ' + data.substring(0, 200) }) });
         }
       });
     });
 
     req.on('error', (e) => {
-      resolve({ statusCode: 500, body: JSON.stringify({ error: e.message }) });
+      resolve({ statusCode: 500, body: JSON.stringify({ error: 'Network error: ' + e.message }) });
     });
 
     req.write(payload);
