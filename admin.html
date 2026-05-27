@@ -71,7 +71,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .q-type-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.06em}
 .badge-radio{background:#dff0ff;color:#015DAA}
 .badge-checkbox{background:#d4f5e9;color:#0a7c4e}
-.badge-slider{background:#fff3d4;color:#7a5a00}
+.badge-slider{background:#fff3d4;color:#7a5a00}.badge-likert{background:#f3e8ff;color:#6b21a8}
 .q-options{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .q-option-pill{font-size:12px;padding:4px 10px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;gap:5px}
 .q-option-weight{font-size:10px;font-weight:700;color:var(--accent);background:rgba(1,93,170,.1);padding:1px 5px;border-radius:6px}
@@ -298,6 +298,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <option value="radio">Radio — choix unique</option>
         <option value="checkbox">Checkbox — choix multiples</option>
         <option value="slider">Curseur — échelle 1 à 5</option>
+        <option value="likert">Likert — accord 1 à 5</option>
       </select>
     </div>
     <div class="field">
@@ -624,8 +625,8 @@ function renderQuestions() {
     </div>`;
     if(!qs.length) html+='<div style="font-size:12px;color:var(--text3);padding:8px 4px;font-style:italic">Section vide</div>';
     qs.forEach((q,i)=>{
-      const badge=q.type==='radio'?'badge-radio':q.type==='checkbox'?'badge-checkbox':'badge-slider';
-      const typeLabel=q.type==='radio'?'Radio':q.type==='checkbox'?'Checkbox':'Curseur';
+      const badge=q.type==='radio'?'badge-radio':q.type==='checkbox'?'badge-checkbox':q.type==='likert'?'badge-likert':'badge-slider';
+      const typeLabel=q.type==='radio'?'Radio':q.type==='checkbox'?'Checkbox':q.type==='likert'?'Likert':'Curseur';
       const opts=(q.options||[]).map(o=>`<span class="q-option-pill">${esc(o.text)}<span class="q-option-weight">${o.weight}</span></span>`).join('');
       html+=`<div class="q-card">
         <div class="q-card-header">
@@ -677,6 +678,27 @@ function openQuestionModal(id=null) {
 
 function renderOptionsEditor(opts=null){
   const type=document.getElementById('q-type').value;
+
+  if(type==='likert'){
+    // Likert : 3 labels (extrême gauche, milieu, extrême droite) + poids 1/3/5
+    const defaults=[{text:'Pas du tout d\'accord',weight:1},{text:'Neutre',weight:3},{text:'Tout à fait d\'accord',weight:5}];
+    const cur = opts&&opts.length===3 ? opts : (opts&&opts.length?[opts[0],opts[Math.floor(opts.length/2)],opts[opts.length-1]]:defaults);
+    const labels=['Extrême gauche (1)','Milieu (3)','Extrême droite (5)'];
+    const weights=[1,3,5];
+    let html='<div style="display:flex;flex-direction:column;gap:8px" id="opts-list">';
+    cur.forEach((o,i)=>{
+      html+=`<div class="option-row" style="align-items:center">
+        <span style="font-size:11px;color:var(--text3);min-width:130px">${labels[i]}</span>
+        <input type="text" value="${esc(o.text)}" class="opt-text" placeholder="${defaults[i].text}" style="flex:1" />
+        <input type="hidden" value="${weights[i]}" class="opt-weight" />
+      </div>`;
+    });
+    html+='</div>';
+    html+='<div style="margin-top:10px;background:#f0f8fd;border-radius:8px;padding:10px;font-size:12px;color:var(--text3)">Aperçu : <strong>1 ·· 2 ·· 3 ·· 4 ·· 5</strong> — les répondants voient 5 boutons, avec vos labels aux positions 1, 3 et 5.</div>';
+    document.getElementById('options-editor').innerHTML=html;
+    return;
+  }
+
   if(!opts) opts=type==='slider'
     ?[{text:'Pas du tout',weight:1},{text:'Peu',weight:2},{text:'Modérément',weight:3},{text:'Plutôt',weight:4},{text:'Tout à fait',weight:5}]
     :[{text:'',weight:1},{text:'',weight:2},{text:'',weight:3},{text:'',weight:4},{text:'',weight:5}];
@@ -702,9 +724,20 @@ async function saveQuestion(){
   const partLabel=document.getElementById('q-part-label').value.trim();
   const label=document.getElementById('q-label').value.trim();
   const type=document.getElementById('q-type').value;
-  const options=getOptions();
+  let options=getOptions();
+  if(type==='likert'){
+    // Générer les 5 options à partir des 3 labels
+    const texts=options.map(o=>o.text);
+    options=[
+      {text:texts[0]||'Pas du tout d\'accord',weight:1},
+      {text:'',weight:2},
+      {text:texts[1]||'Neutre',weight:3},
+      {text:'',weight:4},
+      {text:texts[2]||'Tout à fait d\'accord',weight:5}
+    ];
+  }
   if(!label){showToast('Texte requis.',true);return;}
-  if(options.some(o=>!o.text)){showToast('Tous les textes d\'options sont requis.',true);return;}
+  if(type!=='likert'&&options.some(o=>!o.text)){showToast('Tous les textes d\'options sont requis.',true);return;}
   const btn=document.getElementById('btn-save-q');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';
   const partQ=allQuestions.filter(q=>q.part===part&&q.id!==editingQId);
