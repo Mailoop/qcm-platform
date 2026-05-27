@@ -1186,6 +1186,105 @@ function renderSliderSection(data, questions) {
   html += '</div>';
   return html;
 }
+
+// ── Synthèse IA ──────────────────────────────────────────────────────────────
+function buildSynthesisPrompt(data, axes, sliderItems, name) {
+  const n = data.length;
+
+  // Scores axes
+  let axesDesc = '';
+  if (axes.length >= 2) {
+    const axeX = axes[0], axeY = axes[1];
+    const maxX = getAxeMax(axeX) || 5;
+    const maxY = getAxeMax(axeY) || 5;
+    const allX = data.map(r => computeAxeScore(r, axeX, maxX)).filter(v => v !== null);
+    const allY = data.map(r => computeAxeScore(r, axeY, maxY)).filter(v => v !== null);
+    const avgX = allX.length ? Math.round(allX.reduce((a,b)=>a+b,0)/allX.length*10)/10 : null;
+    const avgY = allY.length ? Math.round(allY.reduce((a,b)=>a+b,0)/allY.length*10)/10 : null;
+    if (avgX !== null) axesDesc += `- Axe "${axeX.label}" : moyenne ${avgX}/${maxX}\n`;
+    if (avgY !== null) axesDesc += `- Axe "${axeY.label}" : moyenne ${avgY}/${maxY}\n`;
+  }
+
+  // Questions slider : top consensus et top polarisation
+  const consensus = sliderItems.filter(i=>i.category==='consensus').sort((a,b)=>b.tw-a.tw).slice(0,3);
+  const polarises = sliderItems.filter(i=>i.category==='polarise').sort((a,b)=>a.tw-b.tw).slice(0,3);
+  const disperses = sliderItems.filter(i=>i.category==='disperse').slice(0,2);
+
+  const fmt = items => items.map(i => {
+    const modeLabel = i.q.options[i.modeIdx]?.text || '';
+    return `  • "${i.q.label}" (TW=${i.tw.toFixed(2)}${modeLabel ? `, tendance : ${modeLabel}` : ''})`;
+  }).join('\n');
+
+  return `Tu es un expert en transformation numérique et conduite du changement. Voici les résultats d\'un questionnaire sur les usages de l\'IA générative au travail, rempli par une équipe de ${n} personnes (${name}).
+
+POSITIONNEMENT PAR AXES :
+${axesDesc || '(non disponible)'}
+
+QUESTIONS EN CONSENSUS (score TW proche de 1 = tout le monde d\'accord) :
+${consensus.length ? fmt(consensus) : '  Aucun consensus fort détecté'}
+
+QUESTIONS POLARISÉES (score TW proche de 0 = avis très opposés) :
+${polarises.length ? fmt(polarises) : '  Aucune polarisation forte détectée'}
+
+QUESTIONS DISPERSÉES (avis variés sans opposition claire) :
+${disperses.length ? fmt(disperses) : '  Aucune'}
+
+Rédige une synthèse interprétative en environ 10 lignes, à destination du manager de cette équipe. Mets en avant :
+1. Le profil général de l\'équipe (maturité et attitude face à l\'IA)
+2. Les points forts d\'alignement (consensus)
+3. Les tensions ou désaccords à traiter en priorité (polarisation)
+4. Une recommandation concrète pour la suite
+
+Ton style : direct, factuel, bienveillant. Pas de bullet points — des paragraphes fluides. Commence directement par la synthèse, sans préambule.`;
+}
+
+async function generateSynthesis(data, axes, name) {
+  const el = document.getElementById('ai-synthesis');
+  if (!el) return;
+
+  // Calculer les items slider pour le prompt
+  const sliderItems = analyzeSlider(data, QUESTIONS);
+
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:var(--text3);font-size:13px">
+    <div style="width:16px;height:16px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite"></div>
+    Génération de la synthèse…
+  </div>`;
+
+  try {
+    const prompt = buildSynthesisPrompt(data, axes, sliderItems, name);
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 800,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const json = await resp.json();
+    const text = json.content?.[0]?.text || '';
+    if (!text) throw new Error('Réponse vide');
+
+    // Formater les paragraphes
+    const paras = text.split(/\n\n+/).filter(p => p.trim()).map(p =>
+      `<p style="margin-bottom:10px;line-height:1.7">${p.trim()}</p>`
+    ).join('');
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:14px;font-weight:600;color:var(--text)">Synthèse</span>
+        <span style="font-size:11px;color:var(--text3);background:var(--bg3);padding:2px 8px;border-radius:20px;border:1px solid var(--border)">✨ Générée par IA</span>
+        <button onclick="generateSynthesis(window._lastResultData, window._lastResultAxes, window._lastResultName)"
+          style="margin-left:auto;font-size:11px;color:var(--text3);background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;cursor:pointer">
+          ↺ Regénérer
+        </button>
+      </div>
+      <div style="font-size:13.5px;color:var(--text2)">${paras}</div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--text3)">Synthèse IA indisponible — ${e.message}</div>`;
+  }
+}
+
 function renderResults(data,id,name,invitations=[],axes=[]){
   const n=data.length;
   const lastDate=data.length?new Date(data[data.length-1].created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'—';
@@ -1195,7 +1294,15 @@ function renderResults(data,id,name,invitations=[],axes=[]){
   const pending=invitations.filter(i=>!i.responded_at);
   const pct=totalInvited?Math.round((responded/totalInvited)*100):null;
 
+  // Stocker pour regénération
+  window._lastResultData = data;
+  window._lastResultAxes = axes;
+  window._lastResultName = name;
+
   let html='<div class="results-header"><div class="results-header-team" id="results-header-team-name">'+name+'</div><div class="results-header-id">Identifiant : '+id+'</div></div>';
+
+  // Bloc synthèse IA
+  html += '<div id="ai-synthesis" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1rem;min-height:60px"></div>';
 
   // Bloc suivi si invitations disponibles
   if(totalInvited>0){
@@ -1253,6 +1360,8 @@ function renderResults(data,id,name,invitations=[],axes=[]){
     });
   });
   document.getElementById('results-container').innerHTML=html;
+  // Lancer la synthèse IA en async
+  generateSynthesis(data, axes, name);
 }
 
 async function loadHomeSurveys(){
