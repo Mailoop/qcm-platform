@@ -101,14 +101,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-@media print {
-  @page { margin: 15mm 12mm; size: A4 portrait; }
   body { background: #fff !important; color: #000 !important; }
   .app { max-width: 100% !important; padding: 0 !important; }
   .screen { display: block !important; opacity: 1 !important; }
   #screen-home, #screen-questionnaire, #screen-submit, #screen-team { display: none !important; }
   #screen-results { display: block !important; }
-  .btn-export-pdf, #btn-remind, .btn-row { display: none !important; }
   .results-header { background: #f5f8ff !important; border: 1px solid #ccc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .q-result, .stat-card { background: #f9fafb !important; border: 1px solid #ddd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; break-inside: avoid; }
   .bar-fill, .bar-fill.top { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -116,6 +113,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .toast { display: none !important; }
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -1166,7 +1165,7 @@ function renderResults(data,id,name,invitations=[],axes=[]){
   const pending=invitations.filter(i=>!i.responded_at);
   const pct=totalInvited?Math.round((responded/totalInvited)*100):null;
 
-  let html='<div class="results-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><div><div class="results-header-team" id="results-header-team-name">'+name+'</div><div class="results-header-id">Identifiant : '+id+'</div></div><button class="btn-export-pdf" onclick="window.print()" title="Exporter en PDF" style="flex-shrink:0;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border2)\';this.style.color=\'var(--text2)\'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>Exporter PDF</button></div>';
+  let html='<div class="results-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><div><div class="results-header-team" id="results-header-team-name">'+name+'</div><div class="results-header-id">Identifiant : '+id+'</div></div><button class="btn-export-pdf" onclick="exportPDF()" title="Exporter en PDF" style="flex-shrink:0;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border2)\';this.style.color=\'var(--text2)\'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>Exporter PDF</button></div>';
 
   // Bloc suivi si invitations disponibles
   if(totalInvited>0){
@@ -1273,6 +1272,67 @@ async function init(){
   loadHomeSurveys();
 }
 window.addEventListener('DOMContentLoaded',init);
+
+async function exportPDF() {
+  const btn = document.querySelector('.btn-export-pdf');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Génération…';
+  btn.disabled = true;
+
+  const el = document.getElementById('results-container');
+  // Masquer le bouton pendant la capture
+  btn.style.visibility = 'hidden';
+
+  try {
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#C7E7F0',
+      logging: false,
+      windowWidth: 700,
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const imgW = pageW - margin * 2;
+    const imgH = (canvas.height * imgW) / canvas.width;
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+
+    let yPos = margin;
+    let remainH = imgH;
+    let srcY = 0;
+
+    while (remainH > 0) {
+      const sliceH = Math.min(remainH, pageH - margin * 2);
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = (sliceH / imgW) * canvas.width;
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, srcY * canvas.width / imgW, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+      const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+      if (srcY > 0) { pdf.addPage(); yPos = margin; }
+      pdf.addImage(sliceData, 'JPEG', margin, yPos, imgW, sliceH);
+      srcY += sliceH;
+      remainH -= sliceH;
+    }
+
+    const teamName = document.getElementById('results-header-team-name')?.textContent || 'resultats';
+    pdf.save(teamName.replace(/[^a-z0-9]/gi, '_') + '_resultats.pdf');
+  } catch(e) {
+    console.error(e);
+    alert('Erreur lors de la génération du PDF.');
+  } finally {
+    btn.style.visibility = 'visible';
+    btn.innerHTML = orig;
+    btn.disabled = false;
+  }
+}
+
 </script>
 </body>
 </html>
