@@ -1036,6 +1036,34 @@ function renderAxesChart(data, axes) {
 }
 
 
+// Score de Tastle & Wierman (2007) — mesure le désaccord en tenant compte
+// de la distance aux extrêmes. D ∈ [0,1] : 0 = consensus parfait, 1 = polarisation maximale.
+// D(X) = 1 + Σ pᵢ · log₂(1 − |μ − xᵢ| / d_max)
+function tastleWierman(dist, n) {
+  const nOpts = dist.length;
+  const xMin = 1, xMax = nOpts;        // valeurs 1..n
+  const dMax = xMax - xMin;            // distance max possible
+
+  // Moyenne pondérée μ
+  let mu = 0;
+  dist.forEach((c, i) => { mu += (i + 1) * c; });
+  mu /= n;
+
+  // Score de désaccord D
+  let D = 0;
+  dist.forEach((c, i) => {
+    if (!c) return;
+    const p = c / n;
+    const xi = i + 1;
+    const ratio = Math.abs(mu - xi) / dMax;
+    // log₂(1 − ratio) : si ratio = 1 on clamp à log₂(ε) pour éviter −∞
+    const arg = Math.max(1 - ratio, 1e-10);
+    D += p * Math.log2(arg);
+  });
+  D = 1 + D; // D ∈ [0, 1]
+  return Math.max(0, Math.min(1, D));
+}
+
 function analyzeSlider(data, questions) {
   const items = [];
   questions.forEach(sec => {
@@ -1048,7 +1076,6 @@ function analyzeSlider(data, questions) {
 
       const n = responses.length;
       const nOpts = q.options.length;
-      // Distribution par index
       const dist = new Array(nOpts).fill(0);
       responses.forEach(v => { if(v>=0 && v<nOpts) dist[v]++; });
       const pcts = dist.map(c => Math.round((c/n)*100));
@@ -1056,23 +1083,23 @@ function analyzeSlider(data, questions) {
       const modeIdx = dist.indexOf(Math.max(...dist));
       const concentration = dist[modeIdx] / n;
 
-      // Polarisation : extrêmes vs centre
-      const half = Math.floor(nOpts / 2);
-      const pctBas = dist.slice(0, half).reduce((a,b)=>a+b,0) / n;
-      const pctHaut = dist.slice(nOpts - half).reduce((a,b)=>a+b,0) / n;
-      const pctCentre = dist[Math.floor(nOpts/2)] / n;
-      const bimodal = (pctBas * pctHaut) / (pctCentre + 0.05);
+      // Score Tastle & Wierman : désaccord pondéré par la distance aux extrêmes
+      const tw = tastleWierman(dist, n);
 
+      // Catégorisation Tastle & Wierman :
+      // tw proche de 0 → polarisé (extrêmes opposés)
+      // tw proche de 1 → consensus (concentration sur une valeur)
+      // entre les deux → dispersé
       let category, badge;
-      if (bimodal > 0.15 && pctBas > 0.2 && pctHaut > 0.2) {
+      if (tw < 0.3) {
         category = 'polarise'; badge = '🔴 Polarisé';
-      } else if (concentration >= 0.5) {
+      } else if (tw > 0.7) {
         category = 'consensus'; badge = '🟢 Consensus';
       } else {
         category = 'disperse'; badge = '🟡 Dispersé';
       }
 
-      items.push({ q, dist, pcts, n, modeIdx, concentration, bimodal, category, badge });
+      items.push({ q, dist, pcts, n, modeIdx, concentration, tw, category, badge });
     });
   });
   return items;
@@ -1110,8 +1137,8 @@ function renderSliderSection(data, questions) {
   const items = analyzeSlider(data, questions);
   if (!items.length) return '';
 
-  const consensus = items.filter(i=>i.category==='consensus').sort((a,b)=>b.concentration-a.concentration);
-  const polarises = items.filter(i=>i.category==='polarise').sort((a,b)=>b.bimodal-a.bimodal);
+  const consensus = items.filter(i=>i.category==='consensus').sort((a,b)=>b.tw-a.tw);
+  const polarises = items.filter(i=>i.category==='polarise').sort((a,b)=>b.tw-a.tw);
   const disperses = items.filter(i=>i.category==='disperse');
 
   let html = `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1rem">
