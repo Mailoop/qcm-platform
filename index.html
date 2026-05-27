@@ -1252,17 +1252,14 @@ async function generateSynthesis(data, axes, name) {
 
   try {
     const prompt = buildSynthesisPrompt(data, axes, sliderItems, name);
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('/.netlify/functions/synthesize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 800,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      body: JSON.stringify({ prompt })
     });
     const json = await resp.json();
-    const text = json.content?.[0]?.text || '';
+    if (!resp.ok) throw new Error(json.error || 'Erreur serveur');
+    const text = json.text || '';
     if (!text) throw new Error('Réponse vide');
 
     // Formater les paragraphes
