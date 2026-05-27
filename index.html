@@ -864,7 +864,7 @@ function getAxeMax(axe) {
 
 // Labels qualitatifs par axe (clé = label de l'axe en minuscule)
 const AXELABELS = {
-  'maturité': ['Novice', 'Apprenti', 'Expérimentateur', 'Expert'],
+  'maturité': ['Novice', 'Apprenti', 'Expérimentateur', 'Utilisateur', 'Expert'],
   'attitude': ['Défensif', 'Résigné', 'Curieux', 'Engagé'],
 };
 function getQualLabels(axeLabel) {
@@ -906,14 +906,19 @@ function renderAxesChart(data, axes) {
   const labelsX = getQualLabels(axeX.label);
   const labelsY = getQualLabels(axeY.label);
 
-  // SVG dimensions — marges larges pour labels extérieurs
-  const W = 620, H = 520;
-  const PAD = { top: 20, right: 20, bottom: 90, left: 110 };
-  const cW = W - PAD.left - PAD.right;
-  const cH = H - PAD.top - PAD.bottom;
+  // SVG : ratio 4 large (maturité 1-5) × 3 haut (attitude 1-4)
+  // Marges larges pour labels extérieurs
+  const CELL = 90;           // largeur d'une cellule en px
+  const nX = maxX - minVal;  // nombre d'intervalles X (ex: 4 pour 5 points)
+  const nY = maxY - minVal;  // nombre d'intervalles Y (ex: 3 pour 4 points)
+  const PAD = { top: 24, right: 24, bottom: 52, left: 120 };
+  const cW = CELL * nX;
+  const cH = CELL * nY;
+  const W = PAD.left + cW + PAD.right;
+  const H = PAD.top + cH + PAD.bottom;
 
-  const toSvgX = v => PAD.left + ((v - minVal) / (maxX - minVal)) * cW;
-  const toSvgY = v => PAD.top + cH - ((v - minVal) / (maxY - minVal)) * cH;
+  const toSvgX = v => PAD.left + ((v - minVal) / nX) * cW;
+  const toSvgY = v => PAD.top + cH - ((v - minVal) / nY) * cH;
 
   const ACCENT = '#015DAA';
   const ACCENT2 = '#80C1E8';
@@ -924,53 +929,43 @@ function renderAxesChart(data, axes) {
   // Fond
   svg += `<rect x="${PAD.left}" y="${PAD.top}" width="${cW}" height="${cH}" fill="#f0f8fd" rx="4"/>`;
 
-  // Lignes de grille verticales + labels X sur chaque ligne
-  const nZonesX = (labelsX || []).length || maxX;
-  const nZonesY = (labelsY || []).length || maxY;
-
-  // Ligne gauche (minVal)
-  svg += `<line x1="${toSvgX(minVal)}" y1="${PAD.top}" x2="${toSvgX(minVal)}" y2="${PAD.top+cH}" stroke="${ACCENT2}" stroke-width=".8" opacity=".4"/>`;
-  if (labelsX) {
-    svg += `<text x="${toSvgX(minVal)}" y="${PAD.top+cH+18}" text-anchor="middle" font-size="11.5" fill="${ACCENT}" font-weight="500">${labelsX[0]}</text>`;
-  }
-  // Lignes intermédiaires
-  for (let z = 1; z < nZonesX; z++) {
-    const v = minVal + z * (maxX - minVal) / nZonesX;
-    const vLabel = minVal + z * (maxX - minVal) / (nZonesX - 1);
-    const sx = toSvgX(minVal + z * (maxX - minVal) / nZonesX);
-    svg += `<line x1="${sx}" y1="${PAD.top}" x2="${sx}" y2="${PAD.top+cH}" stroke="${ACCENT2}" stroke-width="1" stroke-dasharray="4,3" opacity=".5"/>`;
-    if (labelsX && labelsX[z]) {
-      svg += `<text x="${sx}" y="${PAD.top+cH+18}" text-anchor="middle" font-size="11.5" fill="${ACCENT}" font-weight="500">${labelsX[z]}</text>`;
+  // Grille : une ligne verticale par point X (minVal → maxX)
+  for (let v = minVal; v <= maxX; v++) {
+    const sx = toSvgX(v);
+    const isEdge = (v === minVal || v === maxX);
+    svg += `<line x1="${sx}" y1="${PAD.top}" x2="${sx}" y2="${PAD.top+cH}"
+      stroke="${ACCENT2}" stroke-width="${isEdge ? 1.5 : 1}"
+      stroke-dasharray="${isEdge ? 'none' : '4,3'}" opacity="${isEdge ? '.6' : '.5'}"/>`;
+    // Label X sous la ligne
+    if (labelsX && labelsX[v - minVal]) {
+      svg += `<text x="${sx}" y="${PAD.top+cH+20}" text-anchor="middle"
+        font-size="12" fill="${ACCENT}" font-weight="500">${labelsX[v - minVal]}</text>`;
     }
   }
-  // Ligne droite (maxVal)
-  svg += `<line x1="${toSvgX(maxX)}" y1="${PAD.top}" x2="${toSvgX(maxX)}" y2="${PAD.top+cH}" stroke="${ACCENT2}" stroke-width=".8" opacity=".4"/>`;
 
-  // Ligne bas (minVal)
-  svg += `<line x1="${PAD.left}" y1="${toSvgY(minVal)}" x2="${PAD.left+cW}" y2="${toSvgY(minVal)}" stroke="${ACCENT2}" stroke-width=".8" opacity=".4"/>`;
-  if (labelsY) {
-    svg += `<text x="${PAD.left-8}" y="${toSvgY(minVal)+4}" text-anchor="end" font-size="11.5" fill="${ACCENT}" font-weight="500">${labelsY[0]}</text>`;
-  }
-  // Lignes horizontales intermédiaires + labels Y à gauche
-  for (let z = 1; z < nZonesY; z++) {
-    const sy = toSvgY(minVal + z * (maxY - minVal) / nZonesY);
-    svg += `<line x1="${PAD.left}" y1="${sy}" x2="${PAD.left+cW}" y2="${sy}" stroke="${ACCENT2}" stroke-width="1" stroke-dasharray="4,3" opacity=".5"/>`;
-    if (labelsY && labelsY[z]) {
-      svg += `<text x="${PAD.left-8}" y="${sy+4}" text-anchor="end" font-size="11.5" fill="${ACCENT}" font-weight="500">${labelsY[z]}</text>`;
+  // Grille : une ligne horizontale par point Y (minVal → maxY)
+  for (let v = minVal; v <= maxY; v++) {
+    const sy = toSvgY(v);
+    const isEdge = (v === minVal || v === maxY);
+    svg += `<line x1="${PAD.left}" y1="${sy}" x2="${PAD.left+cW}" y2="${sy}"
+      stroke="${ACCENT2}" stroke-width="${isEdge ? 1.5 : 1}"
+      stroke-dasharray="${isEdge ? 'none' : '4,3'}" opacity="${isEdge ? '.6' : '.5'}"/>`;
+    // Label Y à gauche de la ligne
+    if (labelsY && labelsY[v - minVal]) {
+      svg += `<text x="${PAD.left-10}" y="${sy+4}" text-anchor="end"
+        font-size="12" fill="${ACCENT}" font-weight="500">${labelsY[v - minVal]}</text>`;
     }
   }
-  // Ligne haut (maxVal)
-  svg += `<line x1="${PAD.left}" y1="${toSvgY(maxY)}" x2="${PAD.left+cW}" y2="${toSvgY(maxY)}" stroke="${ACCENT2}" stroke-width=".8" opacity=".4"/>`;
-  if (labelsY) {
-    svg += `<text x="${PAD.left-8}" y="${toSvgY(maxY)+4}" text-anchor="end" font-size="11.5" fill="${ACCENT}" font-weight="500">${labelsY[labelsY.length-1]}</text>`;
-  }
 
-  // Bordure graphe
-  svg += `<rect x="${PAD.left}" y="${PAD.top}" width="${cW}" height="${cH}" fill="none" stroke="${ACCENT2}" stroke-width="1.5" rx="4"/>`;
+  // Bordure graphe par-dessus
+  svg += `<rect x="${PAD.left}" y="${PAD.top}" width="${cW}" height="${cH}"
+    fill="none" stroke="${ACCENT}" stroke-width="1.5" rx="3"/>`;
 
-  // Nom des axes
-  svg += `<text x="${PAD.left+cW/2}" y="${H-4}" text-anchor="middle" font-size="13" font-weight="700" fill="${ACCENT}">${axeX.label} →</text>`;
-  svg += `<text transform="rotate(-90)" x="${-(PAD.top+cH/2)}" y="14" text-anchor="middle" font-size="13" font-weight="700" fill="${ACCENT}">${axeY.label} →</text>`;
+  // Noms des axes
+  svg += `<text x="${PAD.left+cW/2}" y="${H-6}" text-anchor="middle"
+    font-size="13" font-weight="700" fill="${ACCENT}">${axeX.label} →</text>`;
+  svg += `<text transform="rotate(-90)" x="${-(PAD.top+cH/2)}" y="16"
+    text-anchor="middle" font-size="13" font-weight="700" fill="${ACCENT}">${axeY.label} →</text>`;
 
   // Points répondants — regrouper les superposés
   const grouped = {};
@@ -1169,6 +1164,25 @@ function renderSliderSection(data, questions) {
   html += renderGroup('🟢 Consensus', consensus, '#0a7c4e');
   html += renderGroup('🔴 Polarisation', polarises, '#c0392b');
   html += renderGroup('🟡 Dispersé', disperses, '#7a5a00');
+
+  // Note méthodologique
+  html += `<details style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
+    <summary style="font-size:11px;color:var(--text3);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px">ℹ️</span> Méthode de calcul
+    </summary>
+    <div style="margin-top:10px;font-size:12px;color:var(--text3);line-height:1.7;max-width:560px">
+      <p>La classification de chaque question repose sur l'<strong style="color:var(--text2)">indice de dissensus de Tastle &amp; Wierman (2007)</strong>, conçu pour mesurer le désaccord sur des échelles ordinales.</p>
+      <p style="margin-top:8px">La formule est la suivante :</p>
+      <p style="margin-top:6px;font-family:monospace;background:var(--bg3);padding:6px 10px;border-radius:6px;color:var(--text2)">
+        D(X) = 1 + Σ pᵢ · log₂(1 − |μ − xᵢ| / d<sub>max</sub>)
+      </p>
+      <p style="margin-top:8px">où <em>pᵢ</em> est la proportion de répondants ayant choisi l'option <em>i</em>, <em>μ</em> la moyenne pondérée des réponses, et <em>d<sub>max</sub></em> la distance maximale possible entre deux options.</p>
+      <p style="margin-top:8px">L'indice D varie de <strong style="color:var(--text2)">0</strong> (désaccord maximal — les réponses sont concentrées aux deux extrémités opposées) à <strong style="color:var(--text2)">1</strong> (consensus parfait — tout le monde a répondu la même chose). Contrairement à un simple écart-type, cet indice pénalise davantage les distributions bipolaires extrêmes (ex : 50 % en 1 et 50 % en 5) que les distributions légèrement dispersées autour du centre.</p>
+      <p style="margin-top:8px">Seuils retenus : D &lt; 0,3 → 🔴 polarisé · D &gt; 0,7 → 🟢 consensus · entre les deux → 🟡 dispersé.</p>
+      <p style="margin-top:6px;font-style:italic">Référence : Tastle, W. J., &amp; Wierman, M. J. (2007). Consensus and dissension: A measure of ordinal dispersion. <em>International Journal of Approximate Reasoning</em>, 45(3), 531–545.</p>
+    </div>
+  </details>`;
+
   html += '</div>';
   return html;
 }
