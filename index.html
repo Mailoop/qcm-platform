@@ -865,7 +865,7 @@ function getAxeMax(axe) {
 // Labels qualitatifs par axe (clé = label de l'axe en minuscule)
 const AXELABELS = {
   'maturité': ['Novice', 'Apprenti', 'Expérimentateur', 'Utilisateur', 'Expert'],
-  'attitude': ['Défensif', 'Résigné', 'Curieux', 'Engagé'],
+  'attitude': ['Défensif', 'Résigné', 'Neutre', 'Curieux', 'Engagé'],
 };
 function getQualLabels(axeLabel) {
   const key = (axeLabel || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
