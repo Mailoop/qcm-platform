@@ -1163,7 +1163,7 @@ function renderResults(data,id,name,invitations=[],axes=[]){
   const pending=invitations.filter(i=>!i.responded_at);
   const pct=totalInvited?Math.round((responded/totalInvited)*100):null;
 
-  let html='<div class="results-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><div><div class="results-header-team" id="results-header-team-name">'+name+'</div><div class="results-header-id">Identifiant : '+id+'</div></div><button class="btn-export-pdf" onclick="exportPDF()" title="Exporter en PDF" style="flex-shrink:0;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border2)\';this.style.color=\'var(--text2)\'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>Exporter PDF</button></div>';
+  let html='<div class="results-header"><div class="results-header-team" id="results-header-team-name">'+name+'</div><div class="results-header-id">Identifiant : '+id+'</div></div>';
 
   // Bloc suivi si invitations disponibles
   if(totalInvited>0){
