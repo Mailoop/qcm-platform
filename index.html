@@ -1271,68 +1271,6 @@ async function init(){
 }
 window.addEventListener('DOMContentLoaded',init);
 
-async function exportPDF() {
-  const btn = document.querySelector('.btn-export-pdf');
-  const orig = btn.innerHTML;
-  btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Génération…';
-  btn.disabled = true;
-
-  const el = document.getElementById('results-container');
-  // Masquer le bouton pendant la capture
-  btn.style.visibility = 'hidden';
-
-  try {
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#C7E7F0',
-      logging: false,
-      scrollX: 0,
-      scrollY: -window.scrollY,
-      width: el.offsetWidth,
-      height: el.scrollHeight,
-    });
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 10;
-    const imgW = pageW - margin * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
-
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-
-    let yPos = margin;
-    let remainH = imgH;
-    let srcY = 0;
-
-    while (remainH > 0) {
-      const sliceH = Math.min(remainH, pageH - margin * 2);
-      const sliceCanvas = document.createElement('canvas');
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = (sliceH / imgW) * canvas.width;
-      const ctx = sliceCanvas.getContext('2d');
-      ctx.drawImage(canvas, 0, srcY * canvas.width / imgW, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
-      const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
-      if (srcY > 0) { pdf.addPage(); yPos = margin; }
-      pdf.addImage(sliceData, 'JPEG', margin, yPos, imgW, sliceH);
-      srcY += sliceH;
-      remainH -= sliceH;
-    }
-
-    const teamName = document.getElementById('results-header-team-name')?.textContent || 'resultats';
-    pdf.save(teamName.replace(/[^a-z0-9]/gi, '_') + '_resultats.pdf');
-  } catch(e) {
-    console.error(e);
-    alert('Erreur lors de la génération du PDF.');
-  } finally {
-    btn.style.visibility = 'visible';
-    btn.innerHTML = orig;
-    btn.disabled = false;
-  }
-}
 
 </script>
 </body>
