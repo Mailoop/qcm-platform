@@ -313,6 +313,16 @@ const SITE_URL='https://ia.infobesite.org';
 let QUESTIONS=[];
 let SURVEY=null;
 
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function loadSurveyData(slug) {
   try {
     // Load survey config
