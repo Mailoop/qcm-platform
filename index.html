@@ -31,8 +31,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .home-card:hover .arrow{transform:translate(3px,-3px);color:var(--accent2)}
 .home-cards-3{grid-template-columns:repeat(3,1fr)}
 @media(max-width:600px){.home-cards-3{grid-template-columns:1fr}}
-.section-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;margin:2rem 0 1rem;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
-.section-label::before{content:'';width:20px;height:1px;background:var(--accent);display:inline-block;flex-shrink:0}
+.section-label{font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;color:var(--accent);margin:2.5rem 0 1.2rem;padding-bottom:12px;border-bottom:2px solid var(--border)}
+.section-label::before{display:none}
 .question-block{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:10px}
 .question-label{font-size:14px;font-weight:500;color:var(--text);margin-bottom:14px;line-height:1.65}
 .question-num{color:var(--accent);font-weight:600;margin-right:6px;font-size:12px}
@@ -589,9 +589,11 @@ function renderSection(){
       });
       html+='</div>';
     } else if(q.type==='slider'){
-      const val=answers[q.id]!==undefined?answers[q.id]:null;
+      const midIdx=Math.floor((q.options.length-1)/2);
+      if(answers[q.id]===undefined) answers[q.id]=midIdx;
+      const val=answers[q.id];
       html+='<div style="padding:1rem 0">';
-      html+='<input type="range" min="0" max="'+(q.options.length-1)+'" step="1" value="'+(val!==null?val:2)+'" data-qid="'+q.id+'" data-type="slider" style="width:100%;accent-color:var(--accent);cursor:pointer">';
+      html+='<input type="range" min="0" max="'+(q.options.length-1)+'" step="1" value="'+val+'" data-qid="'+q.id+'" data-type="slider" style="width:100%;accent-color:var(--accent);cursor:pointer">';
       html+='<div style="display:flex;justify-content:space-between;margin-top:10px;gap:2px">';
       q.options.forEach((opt,i)=>{
         const active=val===i;
